@@ -1,0 +1,11 @@
+{
+  "name": "mind-court",
+  "private": true,
+  "version": "0.0.1",
+  "packageManager": "pnpm@11.1.2",
+  "scripts": {
+    "mobile": "pnpm --filter @mind-court/mobile start",
+    "mobile:ios": "pnpm --filter @mind-court/mobile ios",
+    "mobile:android": "pnpm --filter @mind-court/mobile android"
+  }
+}
