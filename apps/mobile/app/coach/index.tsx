@@ -1,23 +1,68 @@
-import { View, Text, StyleSheet, ScrollView } from 'react-native'
+import { useState } from 'react'
+import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native'
 import { theme, spacing, fontSize, fontWeight, radius } from '@mind-court/ui'
+import { CreateLessonSheet, type Lesson } from '../../components/CreateLessonSheet'
 
 export default function CoachToday() {
+  const [lessons, setLessons] = useState<Lesson[]>([
+    {
+      id: '1',
+      playerName: 'Ana M.',
+      date: (() => { const d = new Date(); d.setHours(9, 0, 0, 0); return d })(),
+      court: 'Court 2',
+      drills: 'Cross-court forehand consistency',
+      mentalCue: 'One ball at a time',
+    },
+  ])
+  const [showCreate, setShowCreate] = useState(false)
+
+  // Build today's lesson list sorted by time
+  const today = new Date()
+  const todayLessons = lessons
+    .filter(l => isSameDay(l.date, today))
+    .sort((a, b) => a.date.getTime() - b.date.getTime())
+
+  function handleSave(lesson: Lesson) {
+    setLessons(prev => [...prev, lesson])
+  }
+
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <Text style={styles.eyebrow}>Thursday, 15 May</Text>
-      <Text style={styles.heading}>Good morning</Text>
+    <>
+      <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+        <Text style={styles.eyebrow}>
+          {today.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+        </Text>
+        <View style={styles.headingRow}>
+          <Text style={styles.heading}>Good morning</Text>
+          <Pressable
+            style={({ pressed }) => [styles.addBtn, pressed && styles.addBtnPressed]}
+            onPress={() => setShowCreate(true)}
+          >
+            <Text style={styles.addBtnText}>+ Add lesson</Text>
+          </Pressable>
+        </View>
 
-      <View style={styles.statsRow}>
-        <StatCard label="Lessons today" value="3" />
-        <StatCard label="Players" value="8" />
-        <StatCard label="Hours" value="4.5" />
-      </View>
+        <View style={styles.statsRow}>
+          <StatCard label="Lessons today" value={String(todayLessons.length)} />
+          <StatCard label="Total players" value={String(new Set(lessons.map(l => l.playerName)).size)} />
+        </View>
 
-      <Text style={styles.sectionLabel}>Schedule</Text>
-      <LessonRow time="9:00 AM" player="Ana M." court="Court 2" />
-      <LessonRow time="11:00 AM" player="Jake T." court="Court 1" />
-      <LessonRow time="2:00 PM" player="Sara & Liam" court="Court 3" />
-    </ScrollView>
+        <Text style={styles.sectionLabel}>Today's schedule</Text>
+        {todayLessons.length === 0 ? (
+          <Text style={styles.empty}>No lessons today. Add one to get started.</Text>
+        ) : (
+          todayLessons.map(lesson => (
+            <LessonRow key={lesson.id} lesson={lesson} />
+          ))
+        )}
+      </ScrollView>
+
+      <CreateLessonSheet
+        visible={showCreate}
+        onClose={() => setShowCreate(false)}
+        onSave={handleSave}
+      />
+    </>
   )
 }
 
@@ -30,27 +75,33 @@ function StatCard({ label, value }: { label: string; value: string }) {
   )
 }
 
-function LessonRow({ time, player, court }: { time: string; player: string; court: string }) {
+function LessonRow({ lesson }: { lesson: Lesson }) {
+  const time = lesson.date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
   return (
     <View style={styles.lessonRow}>
       <Text style={styles.lessonTime}>{time}</Text>
       <View style={styles.lessonInfo}>
-        <Text style={styles.lessonPlayer}>{player}</Text>
-        <Text style={styles.lessonCourt}>{court}</Text>
+        <Text style={styles.lessonPlayer}>{lesson.playerName}</Text>
+        {lesson.court ? <Text style={styles.lessonCourt}>{lesson.court}</Text> : null}
+        {lesson.mentalCue ? (
+          <Text style={styles.lessonCue}>"{lesson.mentalCue}"</Text>
+        ) : null}
       </View>
     </View>
   )
 }
 
+function isSameDay(a: Date, b: Date) {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  )
+}
+
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: theme.bg,
-  },
-  content: {
-    padding: spacing[4],
-    paddingTop: spacing[12],
-  },
+  screen: { flex: 1, backgroundColor: theme.bg },
+  content: { padding: spacing[4], paddingTop: spacing[12] },
   eyebrow: {
     fontSize: fontSize.xs,
     fontWeight: fontWeight.semi,
@@ -59,12 +110,31 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     marginBottom: spacing[1],
   },
+  headingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing[6],
+  },
   heading: {
     fontSize: fontSize['3xl'],
     fontWeight: fontWeight.bold,
     color: theme.fg,
-    marginBottom: spacing[6],
     letterSpacing: -0.5,
+  },
+  addBtn: {
+    backgroundColor: theme.primary,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[2],
+  },
+  addBtnPressed: {
+    backgroundColor: theme.primaryPress,
+  },
+  addBtnText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semi,
+    color: '#fff',
   },
   statsRow: {
     flexDirection: 'row',
@@ -97,9 +167,14 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     marginBottom: spacing[3],
   },
+  empty: {
+    fontSize: fontSize.base,
+    color: theme.fgMuted,
+    marginTop: spacing[2],
+  },
   lessonRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     backgroundColor: theme.bgElevated,
     borderRadius: radius.md,
     padding: spacing[4],
@@ -112,11 +187,10 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     fontWeight: fontWeight.medium,
     color: theme.fgMuted,
-    width: 64,
+    width: 70,
+    paddingTop: 2,
   },
-  lessonInfo: {
-    flex: 1,
-  },
+  lessonInfo: { flex: 1 },
   lessonPlayer: {
     fontSize: fontSize.base,
     fontWeight: fontWeight.semi,
@@ -126,5 +200,11 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     color: theme.fgMuted,
     marginTop: 2,
+  },
+  lessonCue: {
+    fontSize: fontSize.sm,
+    color: theme.accent,
+    marginTop: spacing[2],
+    fontStyle: 'italic',
   },
 })

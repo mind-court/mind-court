@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@mind-court/ui": "workspace:*",
+    "@react-native-community/datetimepicker": "8.4.4",
     "expo": "~54.0.33",
     "expo-router": "~6.0.23",
     "expo-status-bar": "~3.0.9",
