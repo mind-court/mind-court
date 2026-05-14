@@ -17,6 +17,7 @@ export default function CoachLayout() {
       <Tabs.Screen name="index" options={{ title: 'Today' }} />
       <Tabs.Screen name="players" options={{ title: 'Players' }} />
       <Tabs.Screen name="messages" options={{ title: 'Messages' }} />
+      <Tabs.Screen name="profile" options={{ title: 'Account' }} />
     </Tabs>
   )
 }
