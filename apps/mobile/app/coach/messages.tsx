@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import {
   View, Text, StyleSheet, FlatList, Pressable,
-  ActivityIndicator, Modal, FlatList as FL,
+  ActivityIndicator, Modal,
 } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { theme, spacing, fontSize, fontWeight, radius } from '@mind-court/ui'
 import { useConversations } from '../../lib/useConversations'
@@ -13,6 +14,7 @@ export default function Messages() {
   const { conversations, loading, startConversation } = useConversations()
   const { players } = usePlayers()
   const [showPicker, setShowPicker] = useState(false)
+  const insets = useSafeAreaInsets()
 
   async function handlePickPlayer(playerName: string, playerId?: string) {
     setShowPicker(false)
@@ -23,7 +25,7 @@ export default function Messages() {
   return (
     <>
       <View style={styles.screen}>
-        <View style={styles.header}>
+        <View style={[styles.header, { paddingTop: insets.top + spacing[4] }]}>
           <Text style={styles.heading}>Messages</Text>
           <Pressable
             style={({ pressed }) => [styles.addBtn, pressed && styles.addBtnPressed]}
@@ -133,7 +135,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: spacing[4],
-    paddingTop: spacing[12],
   },
   heading: {
     fontSize: fontSize['3xl'],

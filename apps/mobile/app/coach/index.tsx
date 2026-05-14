@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator } from 'react-native'
+import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native'
 import { router } from 'expo-router'
 import { theme, spacing, fontSize, fontWeight, radius } from '@mind-court/ui'
+import { Screen } from '../../components/Screen'
 import { CreateLessonSheet } from '../../components/CreateLessonSheet'
 import { useLessons } from '../../lib/useLessons'
 import type { Lesson } from '../../types/db'
@@ -32,7 +33,7 @@ export default function CoachToday() {
 
   return (
     <>
-      <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+      <Screen>
         <Text style={styles.eyebrow}>
           {today.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
         </Text>
@@ -60,7 +61,7 @@ export default function CoachToday() {
         ) : (
           todayLessons.map(lesson => <LessonRow key={lesson.id} lesson={lesson} />)
         )}
-      </ScrollView>
+      </Screen>
 
       <CreateLessonSheet
         visible={showCreate}
@@ -110,8 +111,6 @@ function isSameDay(a: Date, b: Date) {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: theme.bg },
-  content: { padding: spacing[4], paddingTop: spacing[12] },
   eyebrow: {
     fontSize: fontSize.xs,
     fontWeight: fontWeight.semi,

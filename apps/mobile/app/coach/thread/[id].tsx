@@ -7,6 +7,7 @@ import { useLocalSearchParams, router } from 'expo-router'
 import { supabase } from '../../../lib/supabase'
 import { useMessages } from '../../../lib/useMessages'
 import { useAuth } from '../../../lib/auth'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { theme, spacing, fontSize, fontWeight, radius, forest } from '@mind-court/ui'
 import type { Conversation } from '../../../lib/useConversations'
 import type { Message } from '../../../lib/useMessages'
@@ -14,6 +15,7 @@ import type { Message } from '../../../lib/useMessages'
 export default function Thread() {
   const { id } = useLocalSearchParams<{ id: string }>()
   const { user } = useAuth()
+  const insets = useSafeAreaInsets()
   const { messages, loading, sendMessage } = useMessages(id)
   const [conversation, setConversation] = useState<Conversation | null>(null)
   const [text, setText] = useState('')
@@ -51,7 +53,7 @@ export default function Thread() {
       keyboardVerticalOffset={0}
     >
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + spacing[3] }]}>
         <Pressable onPress={() => router.back()} hitSlop={12} style={styles.backBtn}>
           <Text style={styles.backText}>‹</Text>
         </Pressable>
@@ -158,7 +160,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: spacing[4],
-    paddingTop: spacing[12],
+    paddingTop: spacing[3],
     paddingBottom: spacing[3],
     borderBottomWidth: 1,
     borderBottomColor: theme.borderSubtle,

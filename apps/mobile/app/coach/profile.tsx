@@ -1,6 +1,7 @@
-import { View, Text, Pressable, StyleSheet } from 'react-native'
+import { Text, Pressable, StyleSheet } from 'react-native'
 import { router } from 'expo-router'
 import { useAuth } from '../../lib/auth'
+import { Screen } from '../../components/Screen'
 import { theme, spacing, fontSize, fontWeight, radius } from '@mind-court/ui'
 
 export default function Profile() {
@@ -12,7 +13,7 @@ export default function Profile() {
   }
 
   return (
-    <View style={styles.screen}>
+    <Screen scroll={false}>
       <Text style={styles.heading}>Account</Text>
 
       <View style={styles.card}>
@@ -32,17 +33,11 @@ export default function Profile() {
       >
         <Text style={styles.signOutText}>Sign out</Text>
       </Pressable>
-    </View>
+    </Screen>
   )
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: theme.bg,
-    padding: spacing[4],
-    paddingTop: spacing[12],
-  },
   heading: {
     fontSize: fontSize['3xl'],
     fontWeight: fontWeight.bold,

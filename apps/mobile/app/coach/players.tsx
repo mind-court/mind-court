@@ -1,8 +1,7 @@
 import { useState } from 'react'
-import {
-  View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator,
-} from 'react-native'
+import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native'
 import { theme, spacing, fontSize, fontWeight, radius } from '@mind-court/ui'
+import { Screen } from '../../components/Screen'
 import { usePlayers } from '../../lib/usePlayers'
 import { CreatePlayerSheet } from '../../components/CreatePlayerSheet'
 import type { Player } from '../../types/db'
@@ -13,7 +12,7 @@ export default function Players() {
 
   return (
     <>
-      <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+      <Screen>
         <View style={styles.headingRow}>
           <Text style={styles.heading}>Players</Text>
           <Pressable
@@ -39,7 +38,7 @@ export default function Players() {
             ))}
           </>
         )}
-      </ScrollView>
+      </Screen>
 
       <CreatePlayerSheet
         visible={showCreate}
@@ -77,8 +76,6 @@ function PlayerCard({ player }: { player: Player }) {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: theme.bg },
-  content: { padding: spacing[4], paddingTop: spacing[12] },
   headingRow: {
     flexDirection: 'row',
     alignItems: 'center',

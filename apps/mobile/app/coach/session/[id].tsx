@@ -5,11 +5,13 @@ import {
 } from 'react-native'
 import { useLocalSearchParams, router } from 'expo-router'
 import { supabase } from '../../../lib/supabase'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { theme, spacing, fontSize, fontWeight, radius, court, forest } from '@mind-court/ui'
 import type { Lesson } from '../../../types/db'
 
 export default function Session() {
   const { id } = useLocalSearchParams<{ id: string }>()
+  const insets = useSafeAreaInsets()
   const [lesson, setLesson] = useState<Lesson | null>(null)
   const [loading, setLoading] = useState(true)
   const [drills, setDrills] = useState<string[]>([])
@@ -98,7 +100,7 @@ export default function Session() {
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
 
         {/* ── Hero ── */}
-        <View style={styles.hero}>
+        <View style={[styles.hero, { paddingTop: insets.top + spacing[4] }]}>
           <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={12}>
             <Text style={styles.backText}>‹ Today</Text>
           </Pressable>
@@ -225,7 +227,7 @@ const styles = StyleSheet.create({
   hero: {
     backgroundColor: forest[700],
     paddingHorizontal: spacing[5],
-    paddingTop: spacing[12],
+    paddingTop: spacing[4],
     paddingBottom: spacing[5],
   },
   backBtn: { marginBottom: spacing[4] },

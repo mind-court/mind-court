@@ -25,7 +25,16 @@ export type Lesson = {
   drills: string | null
   mental_cue: string | null
   notes: string | null
+  duration_minutes: number | null
   created_at: string
+}
+
+export type DrillCompletion = {
+  id: string
+  lesson_id: string
+  coach_id: string
+  drill_index: number
+  completed_at: string
 }
 
 export type Conversation = {
