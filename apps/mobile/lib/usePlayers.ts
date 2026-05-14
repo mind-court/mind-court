@@ -26,16 +26,28 @@ export function usePlayers() {
     if (!user) return { error: 'Not signed in' }
     const { data, error } = await supabase
       .from('players')
-      .insert({
-        coach_id: user.id,
-        full_name: input.fullName,
-        is_kid_mode: input.isKidMode,
-      })
+      .insert({ coach_id: user.id, full_name: input.fullName, is_kid_mode: input.isKidMode })
       .select()
       .single()
-    if (!error && data) setPlayers(prev => [...prev, data].sort((a, b) => a.full_name.localeCompare(b.full_name)))
+    if (!error && data) setPlayers(prev => [...prev, data].sort(byName))
     return { error: error?.message ?? null }
   }
 
-  return { players, loading, createPlayer, refresh: fetch }
+  async function updatePlayer(id: string, updates: Partial<Pick<Player, 'full_name' | 'is_kid_mode'>>) {
+    const { error } = await supabase.from('players').update(updates).eq('id', id)
+    if (!error) setPlayers(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p).sort(byName))
+    return { error: error?.message ?? null }
+  }
+
+  async function deletePlayer(id: string) {
+    const { error } = await supabase.from('players').delete().eq('id', id)
+    if (!error) setPlayers(prev => prev.filter(p => p.id !== id))
+    return { error: error?.message ?? null }
+  }
+
+  return { players, loading, createPlayer, updatePlayer, deletePlayer, refresh: fetch }
+}
+
+function byName(a: Player, b: Player) {
+  return a.full_name.localeCompare(b.full_name)
 }

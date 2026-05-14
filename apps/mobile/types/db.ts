@@ -19,10 +19,30 @@ export type Lesson = {
   id: string
   coach_id: string
   player_id: string | null
-  player_name: string        // denormalised for quick display
-  scheduled_at: string       // ISO timestamp
+  player_name: string
+  scheduled_at: string
   court: string | null
   drills: string | null
   mental_cue: string | null
+  notes: string | null
+  created_at: string
+}
+
+export type Conversation = {
+  id: string
+  coach_id: string
+  player_id: string | null
+  player_name: string
+  last_message: string | null
+  last_message_at: string | null
+  created_at: string
+}
+
+export type Message = {
+  id: string
+  conversation_id: string
+  sender_id: string
+  sender_name: string
+  content: string
   created_at: string
 }
