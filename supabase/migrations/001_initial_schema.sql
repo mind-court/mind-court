@@ -1,7 +1,6 @@
 -- ─── Profiles ─────────────────────────────────────────────────────────────────
--- Extends auth.users with role + display name
 
-create table public.profiles (
+create table if not exists public.profiles (
   id          uuid primary key references auth.users on delete cascade,
   role        text not null check (role in ('coach', 'player')),
   full_name   text not null default '',
@@ -10,15 +9,16 @@ create table public.profiles (
 
 alter table public.profiles enable row level security;
 
+drop policy if exists "Users can read their own profile" on public.profiles;
 create policy "Users can read their own profile"
   on public.profiles for select
   using (auth.uid() = id);
 
+drop policy if exists "Users can update their own profile" on public.profiles;
 create policy "Users can update their own profile"
   on public.profiles for update
   using (auth.uid() = id);
 
--- Auto-create a profile row when a new user signs up
 create or replace function public.handle_new_user()
 returns trigger language plpgsql security definer set search_path = public as $$
 begin
@@ -32,6 +32,7 @@ begin
 end;
 $$;
 
+drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
@@ -39,7 +40,7 @@ create trigger on_auth_user_created
 
 -- ─── Players ──────────────────────────────────────────────────────────────────
 
-create table public.players (
+create table if not exists public.players (
   id          uuid primary key default gen_random_uuid(),
   coach_id    uuid not null references public.profiles on delete cascade,
   full_name   text not null,
@@ -49,6 +50,7 @@ create table public.players (
 
 alter table public.players enable row level security;
 
+drop policy if exists "Coaches can manage their own players" on public.players;
 create policy "Coaches can manage their own players"
   on public.players for all
   using (auth.uid() = coach_id);
@@ -56,7 +58,7 @@ create policy "Coaches can manage their own players"
 
 -- ─── Lessons ──────────────────────────────────────────────────────────────────
 
-create table public.lessons (
+create table if not exists public.lessons (
   id           uuid primary key default gen_random_uuid(),
   coach_id     uuid not null references public.profiles on delete cascade,
   player_id    uuid references public.players on delete set null,
@@ -70,9 +72,9 @@ create table public.lessons (
 
 alter table public.lessons enable row level security;
 
+drop policy if exists "Coaches can manage their own lessons" on public.lessons;
 create policy "Coaches can manage their own lessons"
   on public.lessons for all
   using (auth.uid() = coach_id);
 
--- Index for fetching today's / upcoming lessons quickly
-create index lessons_coach_scheduled on public.lessons (coach_id, scheduled_at);
+create index if not exists lessons_coach_scheduled on public.lessons (coach_id, scheduled_at);
