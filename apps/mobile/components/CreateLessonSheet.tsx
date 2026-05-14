@@ -12,8 +12,7 @@ import DateTimePicker from '@react-native-community/datetimepicker'
 import { BottomSheet } from './BottomSheet'
 import { theme, spacing, fontSize, fontWeight, radius } from '@mind-court/ui'
 
-export type Lesson = {
-  id: string
+export type LessonInput = {
   playerName: string
   date: Date
   court: string
@@ -24,7 +23,7 @@ export type Lesson = {
 type Props = {
   visible: boolean
   onClose: () => void
-  onSave: (lesson: Lesson) => void
+  onSave: (input: LessonInput) => void
 }
 
 export function CreateLessonSheet({ visible, onClose, onSave }: Props) {
@@ -39,7 +38,6 @@ export function CreateLessonSheet({ visible, onClose, onSave }: Props) {
   function handleSave() {
     if (!playerName.trim()) return
     onSave({
-      id: Date.now().toString(),
       playerName: playerName.trim(),
       date,
       court: court.trim(),

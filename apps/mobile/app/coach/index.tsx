@@ -1,29 +1,32 @@
 import { useState } from 'react'
-import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native'
+import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator } from 'react-native'
 import { theme, spacing, fontSize, fontWeight, radius } from '@mind-court/ui'
-import { CreateLessonSheet, type Lesson } from '../../components/CreateLessonSheet'
+import { CreateLessonSheet } from '../../components/CreateLessonSheet'
+import { useLessons } from '../../lib/useLessons'
+import type { Lesson } from '../../types/db'
 
 export default function CoachToday() {
-  const [lessons, setLessons] = useState<Lesson[]>([
-    {
-      id: '1',
-      playerName: 'Ana M.',
-      date: (() => { const d = new Date(); d.setHours(9, 0, 0, 0); return d })(),
-      court: 'Court 2',
-      drills: 'Cross-court forehand consistency',
-      mentalCue: 'One ball at a time',
-    },
-  ])
+  const { lessons, loading, createLesson } = useLessons()
   const [showCreate, setShowCreate] = useState(false)
 
-  // Build today's lesson list sorted by time
   const today = new Date()
   const todayLessons = lessons
-    .filter(l => isSameDay(l.date, today))
-    .sort((a, b) => a.date.getTime() - b.date.getTime())
+    .filter(l => isSameDay(new Date(l.scheduled_at), today))
 
-  function handleSave(lesson: Lesson) {
-    setLessons(prev => [...prev, lesson])
+  async function handleSave(input: {
+    playerName: string
+    date: Date
+    court: string
+    drills: string
+    mentalCue: string
+  }) {
+    await createLesson({
+      playerName: input.playerName,
+      scheduledAt: input.date,
+      court: input.court,
+      drills: input.drills,
+      mentalCue: input.mentalCue,
+    })
   }
 
   return (
@@ -44,16 +47,17 @@ export default function CoachToday() {
 
         <View style={styles.statsRow}>
           <StatCard label="Lessons today" value={String(todayLessons.length)} />
-          <StatCard label="Total players" value={String(new Set(lessons.map(l => l.playerName)).size)} />
+          <StatCard label="Total players" value={String(new Set(lessons.map(l => l.player_name)).size)} />
         </View>
 
         <Text style={styles.sectionLabel}>Today's schedule</Text>
-        {todayLessons.length === 0 ? (
+
+        {loading ? (
+          <ActivityIndicator color={theme.primary} style={{ marginTop: spacing[4] }} />
+        ) : todayLessons.length === 0 ? (
           <Text style={styles.empty}>No lessons today. Add one to get started.</Text>
         ) : (
-          todayLessons.map(lesson => (
-            <LessonRow key={lesson.id} lesson={lesson} />
-          ))
+          todayLessons.map(lesson => <LessonRow key={lesson.id} lesson={lesson} />)
         )}
       </ScrollView>
 
@@ -76,15 +80,17 @@ function StatCard({ label, value }: { label: string; value: string }) {
 }
 
 function LessonRow({ lesson }: { lesson: Lesson }) {
-  const time = lesson.date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+  const time = new Date(lesson.scheduled_at).toLocaleTimeString('en-US', {
+    hour: 'numeric', minute: '2-digit',
+  })
   return (
     <View style={styles.lessonRow}>
       <Text style={styles.lessonTime}>{time}</Text>
       <View style={styles.lessonInfo}>
-        <Text style={styles.lessonPlayer}>{lesson.playerName}</Text>
+        <Text style={styles.lessonPlayer}>{lesson.player_name}</Text>
         {lesson.court ? <Text style={styles.lessonCourt}>{lesson.court}</Text> : null}
-        {lesson.mentalCue ? (
-          <Text style={styles.lessonCue}>"{lesson.mentalCue}"</Text>
+        {lesson.mental_cue ? (
+          <Text style={styles.lessonCue}>"{lesson.mental_cue}"</Text>
         ) : null}
       </View>
     </View>
@@ -128,9 +134,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing[4],
     paddingVertical: spacing[2],
   },
-  addBtnPressed: {
-    backgroundColor: theme.primaryPress,
-  },
+  addBtnPressed: { backgroundColor: theme.primaryPress },
   addBtnText: {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.semi,
