@@ -1,3 +1,5 @@
 packages:
   - 'apps/*'
   - 'packages/*'
+patchedDependencies:
+  '@expo/metro-runtime@4.0.1': patches/@expo__metro-runtime@4.0.1.patch

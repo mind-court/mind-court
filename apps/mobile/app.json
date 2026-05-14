@@ -23,6 +23,9 @@
         "backgroundColor": "#1B3A2D"
       },
       "package": "com.mindcourt.app"
-    }
+    },
+    "plugins": [
+      "expo-router"
+    ]
   }
 }
