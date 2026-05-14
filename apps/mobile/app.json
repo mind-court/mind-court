@@ -1,0 +1,28 @@
+{
+  "expo": {
+    "name": "Mind Court",
+    "slug": "mind-court",
+    "version": "0.0.1",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "mindcourt",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1B3A2D"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.mindcourt.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#1B3A2D"
+      },
+      "package": "com.mindcourt.app"
+    }
+  }
+}
