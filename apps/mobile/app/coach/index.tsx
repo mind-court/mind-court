@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator } from 'react-native'
+import { router } from 'expo-router'
 import { theme, spacing, fontSize, fontWeight, radius } from '@mind-court/ui'
 import { CreateLessonSheet } from '../../components/CreateLessonSheet'
 import { useLessons } from '../../lib/useLessons'
@@ -84,7 +85,10 @@ function LessonRow({ lesson }: { lesson: Lesson }) {
     hour: 'numeric', minute: '2-digit',
   })
   return (
-    <View style={styles.lessonRow}>
+    <Pressable
+      style={({ pressed }) => [styles.lessonRow, pressed && styles.lessonRowPressed]}
+      onPress={() => router.push(`/coach/session/${lesson.id}`)}
+    >
       <Text style={styles.lessonTime}>{time}</Text>
       <View style={styles.lessonInfo}>
         <Text style={styles.lessonPlayer}>{lesson.player_name}</Text>
@@ -93,7 +97,7 @@ function LessonRow({ lesson }: { lesson: Lesson }) {
           <Text style={styles.lessonCue}>"{lesson.mental_cue}"</Text>
         ) : null}
       </View>
-    </View>
+    </Pressable>
   )
 }
 
@@ -187,6 +191,7 @@ const styles = StyleSheet.create({
     borderColor: theme.border,
     gap: spacing[4],
   },
+  lessonRowPressed: { backgroundColor: theme.bgSunken },
   lessonTime: {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.medium,

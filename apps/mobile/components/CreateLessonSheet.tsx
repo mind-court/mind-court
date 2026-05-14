@@ -152,7 +152,7 @@ export function CreateLessonSheet({ visible, onClose, onSave }: Props) {
         <Field label="Drills & plan">
           <TextInput
             style={[styles.input, styles.textarea]}
-            placeholder="What are you working on this session?"
+            placeholder={"One drill per line:\nCross-court forehands — 20 reps\nServe — first serve %"}
             placeholderTextColor={theme.fgFaint}
             value={drills}
             onChangeText={setDrills}
