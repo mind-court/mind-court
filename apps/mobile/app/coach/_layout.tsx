@@ -56,6 +56,10 @@ export default function CoachLayout() {
         name="thread/[id]"
         options={{ href: null, tabBarStyle: { display: 'none' } }}
       />
+      <Tabs.Screen
+        name="player/[id]"
+        options={{ href: null, tabBarStyle: { display: 'none' } }}
+      />
     </Tabs>
   )
 }

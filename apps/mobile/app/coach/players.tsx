@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native'
+import { router } from 'expo-router'
 import { Feather } from '@expo/vector-icons'
 import { theme, spacing, fontSize, fontWeight, radius, forest, court } from '@mind-court/ui'
 import { Screen } from '../../components/Screen'
@@ -90,7 +91,10 @@ function PlayerCard({ player, lessons }: { player: Player; lessons: Lesson[] }) 
   })
 
   return (
-    <Pressable style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}>
+    <Pressable
+      style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+      onPress={() => router.push(`/coach/player/${player.id}`)}
+    >
       <View style={[styles.avatar, { backgroundColor: avatarColor(player.full_name) }]}>
         <Text style={styles.avatarText}>{initials}</Text>
       </View>
