@@ -105,7 +105,7 @@ export default function Thread() {
           )}
           ListEmptyComponent={
             <View style={styles.emptyThread}>
-              <Feather name="message-circle" size={32} color={theme.fgFaint} style={styles.emptyIcon} />
+              <Feather name="message-circle" size={36} color={theme.fgFaint} style={styles.emptyIcon} />
               <Text style={styles.emptyTitle}>Start the conversation</Text>
               <Text style={styles.emptySubtitle}>Send a drill tip, schedule note, or feedback.</Text>
             </View>

@@ -4,10 +4,18 @@ import {
   TextInput, ActivityIndicator, KeyboardAvoidingView, Platform,
 } from 'react-native'
 import { useLocalSearchParams, router } from 'expo-router'
+import { Feather } from '@expo/vector-icons'
 import { supabase } from '../../../lib/supabase'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { theme, spacing, fontSize, fontWeight, radius, court, forest } from '@mind-court/ui'
+import { theme, spacing, fontSize, fontWeight, radius, court, forest, sage } from '@mind-court/ui'
 import type { Lesson } from '../../../types/db'
+
+const AVATAR_COLORS = [forest[500], forest[600], '#6B8CAE', '#7A8E70', '#A0845C', '#7A6B8A', sage[700]]
+function avatarColor(name: string) {
+  let hash = 0
+  for (const c of name) hash = (hash * 31 + c.charCodeAt(0)) & 0xffff
+  return AVATAR_COLORS[hash % AVATAR_COLORS.length]
+}
 
 export default function Session() {
   const { id } = useLocalSearchParams<{ id: string }>()
@@ -107,7 +115,7 @@ export default function Session() {
 
           <View style={styles.heroMeta}>
             <View style={styles.heroLeft}>
-              <View style={styles.avatar}>
+              <View style={[styles.avatar, { backgroundColor: avatarColor(lesson.player_name) }]}>
                 <Text style={styles.avatarText}>{initials}</Text>
               </View>
               <View>
@@ -187,7 +195,8 @@ export default function Session() {
 
         {drills.length === 0 && !lesson.mental_cue && (
           <View style={styles.emptySession}>
-            <Text style={styles.emptyText}>No drills or mental cue set for this lesson.</Text>
+            <Feather name="clipboard" size={36} color={forest[300]} style={styles.emptyIcon} />
+            <Text style={styles.emptyText}>No drills or mental cue planned for this lesson.</Text>
           </View>
         )}
 
@@ -241,7 +250,6 @@ const styles = StyleSheet.create({
   heroLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
   avatar: {
     width: 48, height: 48, borderRadius: 24,
-    backgroundColor: forest[500],
     justifyContent: 'center', alignItems: 'center',
   },
   avatarText: { fontSize: fontSize.base, fontWeight: fontWeight.bold, color: '#fff' },
@@ -380,6 +388,7 @@ const styles = StyleSheet.create({
     padding: spacing[8],
     alignItems: 'center',
   },
+  emptyIcon: { marginBottom: spacing[3] },
   emptyText: {
     fontSize: fontSize.base,
     color: theme.fgMuted,

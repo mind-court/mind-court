@@ -68,7 +68,6 @@ export default function CoachToday() {
           <View style={[styles.statCard, styles.statCardAccent]}>
             <Text style={styles.statValueAccent}>{todayLessons.length}</Text>
             <Text style={styles.statLabelAccent}>lessons today</Text>
-            <Text style={styles.statHint}>on court today</Text>
           </View>
           <View style={styles.statCard}>
             <Text style={styles.statValue}>{futureLessons.length}</Text>
@@ -228,11 +227,6 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xs,
     color: forest[200],
     marginTop: spacing[1],
-  },
-  statHint: {
-    fontSize: fontSize.xs,
-    color: forest[300],
-    marginTop: 2,
   },
   sectionLabel: {
     fontSize: fontSize.sm,

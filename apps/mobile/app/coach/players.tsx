@@ -181,7 +181,7 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     fontWeight: fontWeight.semi,
     color: theme.fgSubtle,
-    letterSpacing: 1.2,
+    letterSpacing: 1.8,
     textTransform: 'uppercase',
     marginBottom: spacing[3],
   },
@@ -248,7 +248,7 @@ const styles = StyleSheet.create({
     color: theme.fgSubtle,
   },
   kidBadge: {
-    backgroundColor: theme.accentHover,
+    backgroundColor: court[100],
     borderRadius: radius.pill,
     paddingHorizontal: spacing[2],
     paddingVertical: 2,
@@ -256,7 +256,7 @@ const styles = StyleSheet.create({
   kidBadgeText: {
     fontSize: fontSize.xs,
     fontWeight: fontWeight.semi,
-    color: theme.fgOnAccent,
+    color: court[700],
   },
   right: {
     flexDirection: 'row',
