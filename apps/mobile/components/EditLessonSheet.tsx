@@ -86,6 +86,7 @@ export function EditLessonSheet({ visible, onClose, onSave, lesson }: Props) {
         style={styles.scroll}
         contentContainerStyle={styles.form}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
       >
         <View style={styles.row}>
           <View style={styles.rowField}>

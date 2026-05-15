@@ -143,6 +143,7 @@ export function CreateLessonSheet({ visible, onClose, onSave, players }: Props) 
               data={filtered}
               keyExtractor={p => p.id}
               keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="on-drag"
               contentContainerStyle={styles.pickerList}
               renderItem={({ item }) => {
                 const initials = item.full_name
@@ -180,6 +181,7 @@ export function CreateLessonSheet({ visible, onClose, onSave, players }: Props) 
             style={styles.scroll}
             contentContainerStyle={styles.form}
             keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
           >
             <Field label="Player">
               <Pressable

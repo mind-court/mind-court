@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
-  View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Alert,
+  View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Alert, Animated,
 } from 'react-native'
 import { useLocalSearchParams, router } from 'expo-router'
 import { Feather } from '@expo/vector-icons'
@@ -16,7 +16,8 @@ import { formatRelativeDate } from '../../../lib/dateUtils'
 import type { Player, Lesson } from '../../../types/db'
 
 export default function PlayerDetail() {
-  const { id } = useLocalSearchParams<{ id: string }>()
+  const { id, welcome } = useLocalSearchParams<{ id: string; welcome?: string }>()
+  const isWelcome = welcome === '1'
   const insets = useSafeAreaInsets()
   const { lessons } = useLessons()
   const { players, deletePlayer, updatePlayer } = usePlayers()
@@ -90,15 +91,15 @@ export default function PlayerDetail() {
       style={styles.screen}
       contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + spacing[8] }]}
     >
+      {/* Welcome banner — appears when arriving from Add Player */}
+      {isWelcome && <WelcomeBanner firstName={firstNameOf(player.full_name)} topInset={insets.top} />}
+
       {/* Header */}
       <View style={[styles.hero, { paddingTop: insets.top + spacing[4] }]}>
         <View style={styles.heroTop}>
           <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={12}>
             <Feather name="arrow-left" size={18} color="rgba(255,255,255,0.8)" />
             <Text style={styles.backText}> Players</Text>
-          </Pressable>
-          <Pressable onPress={() => setShowEdit(true)} hitSlop={12}>
-            <Text style={styles.editText}>Edit</Text>
           </Pressable>
         </View>
 
@@ -116,15 +117,24 @@ export default function PlayerDetail() {
         </View>
       </View>
 
-      {/* Quick actions */}
+      {/* Next-action ribbon — Schedule / Message / Edit */}
       <View style={styles.actionsRow}>
-        <Pressable
-          style={({ pressed }) => [styles.actionBtn, pressed && styles.actionBtnPressed]}
+        <ActionPill
+          icon="calendar"
+          label={playerLessons.length === 0 ? 'Schedule first lesson' : 'Schedule'}
+          accent={isWelcome && playerLessons.length === 0}
+          onPress={() => router.push('/coach')}
+        />
+        <ActionPill
+          icon="message-circle"
+          label="Message"
           onPress={handleMessage}
-        >
-          <Feather name="message-circle" size={18} color={theme.primary} />
-          <Text style={styles.actionBtnText}>Message</Text>
-        </Pressable>
+        />
+        <ActionPill
+          icon="edit-2"
+          label="Edit"
+          onPress={() => setShowEdit(true)}
+        />
       </View>
 
       {/* Stats */}
@@ -150,6 +160,9 @@ export default function PlayerDetail() {
           </Text>
         </View>
       </View>
+
+      {/* Profile */}
+      <ProfileSection player={player} />
 
       {/* Lesson history */}
       <View style={styles.section}>
@@ -177,19 +190,192 @@ export default function PlayerDetail() {
         visible={showEdit}
         onClose={() => setShowEdit(false)}
         player={player}
-        onSave={async (updates) => {
-          const result = await updatePlayer(id, {
-            full_name: updates.fullName,
-            is_kid_mode: updates.isKidMode,
-          })
+        onSave={async (input) => {
+          const result = await updatePlayer(id, input)
           if (!result?.error) {
-            setPlayer(prev => prev ? { ...prev, full_name: updates.fullName, is_kid_mode: updates.isKidMode } : prev)
+            setPlayer(prev => prev ? {
+              ...prev,
+              full_name: input.fullName,
+              is_kid_mode: input.isKidMode,
+              skill_level: input.skillLevel?.trim() || null,
+              contact_phone: input.contactPhone?.trim() || null,
+              contact_email: input.contactEmail?.trim() || null,
+              birthdate: input.birthdate?.trim() || null,
+              lesson_cadence: input.lessonCadence?.trim() || null,
+              primary_focus: input.primaryFocus?.trim() || null,
+              intake_notes: input.intakeNotes?.trim() || null,
+              parent_name: input.parentName?.trim() || null,
+              parent_phone: input.parentPhone?.trim() || null,
+            } : prev)
           }
           return result
         }}
       />
     </ScrollView>
   )
+}
+
+function WelcomeBanner({ firstName, topInset }: { firstName: string; topInset: number }) {
+  const opacity = useRef(new Animated.Value(0)).current
+  const translate = useRef(new Animated.Value(-32)).current
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(opacity, { toValue: 1, duration: 280, useNativeDriver: true }),
+      Animated.spring(translate, { toValue: 0, friction: 8, tension: 60, useNativeDriver: true }),
+    ]).start()
+
+    const t = setTimeout(() => {
+      Animated.parallel([
+        Animated.timing(opacity, { toValue: 0, duration: 500, useNativeDriver: true }),
+        Animated.timing(translate, { toValue: -32, duration: 500, useNativeDriver: true }),
+      ]).start()
+    }, 3500)
+    return () => clearTimeout(t)
+  }, [opacity, translate])
+
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={[
+        styles.welcomeBanner,
+        { paddingTop: topInset + 6, opacity, transform: [{ translateY: translate }] },
+      ]}
+    >
+      <View style={styles.welcomePill}>
+        <Feather name="check-circle" size={18} color={forest[900]} />
+        <Text style={styles.welcomeText}>{firstName} is on your roster 🎾</Text>
+      </View>
+    </Animated.View>
+  )
+}
+
+function ActionPill({
+  icon, label, onPress, accent,
+}: {
+  icon: keyof typeof Feather.glyphMap
+  label: string
+  onPress: () => void
+  accent?: boolean
+}) {
+  return (
+    <Pressable
+      style={({ pressed }) => [
+        styles.actionBtn,
+        accent && styles.actionBtnAccent,
+        pressed && styles.actionBtnPressed,
+      ]}
+      onPress={onPress}
+    >
+      <Feather
+        name={icon}
+        size={18}
+        color={accent ? forest[900] : theme.primary}
+      />
+      <Text
+        style={[styles.actionBtnText, accent && styles.actionBtnTextAccent]}
+        numberOfLines={1}
+      >
+        {label}
+      </Text>
+    </Pressable>
+  )
+}
+
+function firstNameOf(full: string): string {
+  return full.trim().split(/\s+/)[0] ?? full
+}
+
+function ProfileSection({ player }: { player: Player }) {
+  const facts: { label: string; value: string }[] = []
+  if (player.skill_level) facts.push({ label: 'Skill level', value: player.skill_level })
+  if (player.birthdate) {
+    const age = ageFromBirthdate(player.birthdate)
+    const formatted = formatBirthdate(player.birthdate)
+    facts.push({ label: 'Birthdate', value: age != null ? `${formatted} · ${age}` : formatted })
+  }
+  if (player.lesson_cadence) facts.push({ label: 'Cadence', value: player.lesson_cadence })
+  if (player.primary_focus) facts.push({ label: 'Focus', value: player.primary_focus })
+
+  const hasContact = player.contact_phone || player.contact_email
+  const hasParent = player.is_kid_mode && (player.parent_name || player.parent_phone)
+  const hasNotes = !!player.intake_notes
+  const hasAnything = facts.length > 0 || hasContact || hasParent || hasNotes
+
+  if (!hasAnything) return null
+
+  return (
+    <View style={styles.profileWrap}>
+      <Text style={styles.sectionLabel}>Profile</Text>
+
+      {facts.length > 0 && (
+        <View style={styles.factGrid}>
+          {facts.map(f => (
+            <View key={f.label} style={styles.factTile}>
+              <Text style={styles.factLabel}>{f.label}</Text>
+              <Text style={styles.factValue} numberOfLines={2}>{f.value}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+
+      {hasContact && (
+        <View style={styles.contactRow}>
+          {player.contact_phone && (
+            <View style={styles.contactItem}>
+              <Feather name="phone" size={14} color={theme.fgSubtle} />
+              <Text style={styles.contactText}>{player.contact_phone}</Text>
+            </View>
+          )}
+          {player.contact_email && (
+            <View style={styles.contactItem}>
+              <Feather name="mail" size={14} color={theme.fgSubtle} />
+              <Text style={styles.contactText} numberOfLines={1}>{player.contact_email}</Text>
+            </View>
+          )}
+        </View>
+      )}
+
+      {hasParent && (
+        <View style={styles.parentCard}>
+          <View style={styles.parentHeader}>
+            <Feather name="users" size={13} color={court[700]} />
+            <Text style={styles.parentTitle}>Parent contact</Text>
+          </View>
+          {player.parent_name && <Text style={styles.parentName}>{player.parent_name}</Text>}
+          {player.parent_phone && (
+            <View style={styles.contactItem}>
+              <Feather name="phone" size={13} color={court[700]} />
+              <Text style={[styles.contactText, { color: court[700] }]}>{player.parent_phone}</Text>
+            </View>
+          )}
+        </View>
+      )}
+
+      {hasNotes && (
+        <View style={styles.notesCard}>
+          <Text style={styles.notesLabel}>Intake notes</Text>
+          <Text style={styles.notesText}>{player.intake_notes}</Text>
+        </View>
+      )}
+    </View>
+  )
+}
+
+function ageFromBirthdate(birthdate: string): number | null {
+  const d = new Date(birthdate)
+  if (Number.isNaN(d.getTime())) return null
+  const now = new Date()
+  let age = now.getFullYear() - d.getFullYear()
+  const monthDiff = now.getMonth() - d.getMonth()
+  if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < d.getDate())) age--
+  return age >= 0 && age < 130 ? age : null
+}
+
+function formatBirthdate(birthdate: string): string {
+  const d = new Date(birthdate)
+  if (Number.isNaN(d.getTime())) return birthdate
+  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
 }
 
 function LessonHistoryRow({ lesson }: { lesson: Lesson }) {
@@ -298,7 +484,41 @@ const styles = StyleSheet.create({
     paddingVertical: spacing[3],
   },
   actionBtnPressed: { backgroundColor: theme.bgSunken },
+  actionBtnAccent: {
+    backgroundColor: court[300],
+    borderColor: court[400],
+  },
   actionBtnText: { fontSize: fontSize.sm, fontWeight: fontWeight.semi, color: theme.primary },
+  actionBtnTextAccent: { color: forest[900] },
+
+  welcomeBanner: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+    alignItems: 'center',
+    paddingHorizontal: spacing[4],
+  },
+  welcomePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: court[300],
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing[4],
+    paddingVertical: 10,
+    shadowColor: '#000',
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
+  },
+  welcomeText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semi,
+    color: forest[900],
+  },
 
   statsRow: {
     flexDirection: 'row',
@@ -313,6 +533,85 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase', letterSpacing: 1.2,
   },
   statDivider: { width: 1, height: 40, backgroundColor: theme.borderSubtle, alignSelf: 'center' },
+
+  profileWrap: {
+    paddingHorizontal: spacing[5],
+    paddingTop: spacing[5],
+    gap: spacing[3],
+  },
+  factGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing[2],
+  },
+  factTile: {
+    flexBasis: '48%',
+    flexGrow: 1,
+    backgroundColor: theme.bgElevated,
+    borderWidth: 1,
+    borderColor: theme.border,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing[3],
+    paddingVertical: spacing[2],
+    gap: 2,
+  },
+  factLabel: {
+    fontSize: 10,
+    fontWeight: fontWeight.semi,
+    color: theme.fgSubtle,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+  },
+  factValue: { fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: theme.fg },
+
+  contactRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing[3],
+    backgroundColor: theme.bgElevated,
+    borderWidth: 1,
+    borderColor: theme.border,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing[3],
+    paddingVertical: spacing[3],
+  },
+  contactItem: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 },
+  contactText: { fontSize: fontSize.sm, color: theme.fg },
+
+  parentCard: {
+    backgroundColor: court[100],
+    borderWidth: 1,
+    borderColor: court[200],
+    borderRadius: radius.md,
+    padding: spacing[3],
+    gap: 4,
+  },
+  parentHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  parentTitle: {
+    fontSize: 10,
+    fontWeight: fontWeight.bold,
+    color: court[700],
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+  },
+  parentName: { fontSize: fontSize.sm, fontWeight: fontWeight.semi, color: theme.fg },
+
+  notesCard: {
+    backgroundColor: theme.bgElevated,
+    borderWidth: 1,
+    borderColor: theme.border,
+    borderRadius: radius.md,
+    padding: spacing[3],
+    gap: 4,
+  },
+  notesLabel: {
+    fontSize: 10,
+    fontWeight: fontWeight.semi,
+    color: theme.fgSubtle,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+  },
+  notesText: { fontSize: fontSize.sm, color: theme.fg, lineHeight: 19 },
 
   section: { padding: spacing[5], gap: spacing[2] },
   sectionLabel: {
@@ -342,10 +641,10 @@ const styles = StyleSheet.create({
   lessonNoDetails: { fontSize: fontSize.sm, color: theme.fgFaint },
   lessonRight: { flexDirection: 'row', alignItems: 'center', gap: spacing[1] },
   durationBadge: {
-    backgroundColor: court[100], borderRadius: 999,
+    backgroundColor: forest[50], borderRadius: 999,
     paddingHorizontal: 6, paddingVertical: 2,
   },
-  durationText: { fontSize: 11, fontWeight: fontWeight.semi, color: court[700] },
+  durationText: { fontSize: 11, fontWeight: fontWeight.semi, color: forest[700] },
 
   dangerZone: {
     marginHorizontal: spacing[5],

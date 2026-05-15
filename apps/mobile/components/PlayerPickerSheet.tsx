@@ -68,6 +68,7 @@ export function PlayerPickerSheet({ visible, onClose, players, onSelect }: Props
           data={filtered}
           keyExtractor={p => p.id}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
           contentContainerStyle={styles.list}
           renderItem={({ item }) => {
             const initials = item.full_name

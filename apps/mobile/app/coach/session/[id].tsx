@@ -146,7 +146,11 @@ export default function Session() {
       style={styles.screen}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+      >
 
         {/* ── Hero ── */}
         <View style={[styles.hero, { paddingTop: insets.top + spacing[4] }]}>

@@ -40,7 +40,12 @@ export default function SignIn() {
       style={styles.screen}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+      >
+
         <View style={styles.brand}>
           <Logo height={44} variant="dark" />
           <View style={styles.accentBar} />

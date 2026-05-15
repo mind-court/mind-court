@@ -32,6 +32,7 @@ export function Screen({ children, scroll = true, style, contentStyle, ...rest }
       style={{ flex: 1, backgroundColor: theme.bg }}
       contentContainerStyle={[{ flexGrow: 1, ...pad }, contentStyle]}
       keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="on-drag"
       showsVerticalScrollIndicator={false}
       {...rest}
     >
