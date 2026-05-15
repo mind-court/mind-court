@@ -7,7 +7,6 @@ import { useLocalSearchParams, router } from 'expo-router'
 import { supabase } from '../../../lib/supabase'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useDrillCompletions } from '../../../lib/useDrillCompletions'
-import { useLessons } from '../../../lib/useLessons'
 import { EditLessonSheet } from '../../../components/EditLessonSheet'
 import { theme, spacing, fontSize, fontWeight, radius, court, forest } from '@mind-court/ui'
 import type { Lesson } from '../../../types/db'
@@ -20,7 +19,6 @@ export default function Session() {
   const [loading, setLoading] = useState(true)
   const [drills, setDrills] = useState<string[]>([])
   const { completed, toggleDrill } = useDrillCompletions(id)
-  const { updateLesson } = useLessons()
   const [notes, setNotes] = useState('')
   const [showNotes, setShowNotes] = useState(false)
   const [showEdit, setShowEdit] = useState(false)
@@ -73,14 +71,16 @@ export default function Session() {
 
   async function handleEditSave(edits: LessonEdits) {
     if (!lesson) return
-    const result = await updateLesson(lesson.id, {
+    const updates = {
       court: edits.court || null,
       scheduled_at: edits.scheduledAt.toISOString(),
       duration_minutes: edits.durationMinutes,
       drills: edits.drills || null,
       mental_cue: edits.mentalCue || null,
-    })
-    if (!result?.error && lesson) {
+    }
+    const { error } = await supabase.from('lessons').update(updates).eq('id', lesson.id)
+    const result = { error: error?.message ?? null }
+    if (!result.error && lesson) {
       setLesson(prev => prev ? {
         ...prev,
         court: edits.court || null,

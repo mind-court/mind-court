@@ -113,7 +113,11 @@ export default function PlayerDetail() {
           <Text style={styles.statValue}>
             {playerLessons[0] ? formatRelativeDate(new Date(playerLessons[0].scheduled_at)) : '—'}
           </Text>
-          <Text style={styles.statLabel}>Last session</Text>
+          <Text style={styles.statLabel}>
+            {playerLessons[0] && new Date(playerLessons[0].scheduled_at) > new Date()
+              ? 'Next session'
+              : 'Last session'}
+          </Text>
         </View>
       </View>
 
