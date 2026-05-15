@@ -1,16 +1,28 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   View, Text, StyleSheet, FlatList, TextInput,
-  Pressable, KeyboardAvoidingView, ActivityIndicator,
+  Pressable, KeyboardAvoidingView, ActivityIndicator, Platform,
 } from 'react-native'
 import { useLocalSearchParams, router } from 'expo-router'
+import { Feather } from '@expo/vector-icons'
 import { supabase } from '../../../lib/supabase'
 import { useMessages } from '../../../lib/useMessages'
 import { useAuth } from '../../../lib/auth'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { theme, spacing, fontSize, fontWeight, radius, forest } from '@mind-court/ui'
+import { theme, spacing, fontSize, fontWeight, radius, forest, sage } from '@mind-court/ui'
 import type { Conversation } from '../../../lib/useConversations'
 import type { Message } from '../../../lib/useMessages'
+
+const AVATAR_COLORS = [forest[500], forest[600], '#6B8CAE', '#7A8E70', '#A0845C', '#7A6B8A', sage[700]]
+function avatarColor(name: string) {
+  let hash = 0
+  for (const c of name) hash = (hash * 31 + c.charCodeAt(0)) & 0xffff
+  return AVATAR_COLORS[hash % AVATAR_COLORS.length]
+}
+
+function initials(name: string): string {
+  return name.split(' ').map(w => w[0] ?? '').join('').slice(0, 2).toUpperCase()
+}
 
 export default function Thread() {
   const { id } = useLocalSearchParams<{ id: string }>()
@@ -21,6 +33,7 @@ export default function Thread() {
   const [text, setText] = useState('')
   const [sending, setSending] = useState(false)
   const listRef = useRef<FlatList>(null)
+  const playerName = conversation?.player_name ?? ''
 
   useEffect(() => {
     supabase
@@ -55,10 +68,18 @@ export default function Thread() {
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + spacing[3] }]}>
         <Pressable onPress={() => router.back()} hitSlop={12} style={styles.backBtn}>
-          <Text style={styles.backText}>‹</Text>
+          <Feather name="arrow-left" size={18} color={theme.primary} />
+          <Text style={styles.backText}> Messages</Text>
         </Pressable>
-        <Text style={styles.headerName}>{conversation?.player_name ?? '…'}</Text>
-        <View style={{ width: 32 }} />
+        <View style={styles.headerCenter}>
+          {playerName ? (
+            <View style={[styles.headerAvatar, { backgroundColor: avatarColor(playerName) }]}>
+              <Text style={styles.headerAvatarText}>{initials(playerName)}</Text>
+            </View>
+          ) : null}
+          <Text style={styles.headerName}>{playerName || '…'}</Text>
+        </View>
+        <View style={styles.headerSpacer} />
       </View>
 
       {/* Messages */}
@@ -84,7 +105,9 @@ export default function Thread() {
           )}
           ListEmptyComponent={
             <View style={styles.emptyThread}>
-              <Text style={styles.emptyText}>No messages yet. Say something.</Text>
+              <Feather name="message-circle" size={32} color={theme.fgFaint} style={styles.emptyIcon} />
+              <Text style={styles.emptyTitle}>Start the conversation</Text>
+              <Text style={styles.emptySubtitle}>Send a drill tip, schedule note, or feedback.</Text>
             </View>
           }
           onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
@@ -166,17 +189,42 @@ const styles = StyleSheet.create({
     borderBottomColor: theme.borderSubtle,
     backgroundColor: theme.bgElevated,
   },
-  backBtn: { width: 32 },
+  backBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[1],
+    minWidth: spacing[24],
+  },
   backText: {
-    fontSize: 28,
+    fontSize: fontSize.sm,
     color: theme.primary,
-    lineHeight: 32,
+    fontWeight: fontWeight.medium,
+  },
+  headerCenter: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing[2],
+  },
+  headerAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerAvatarText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    color: '#fff',
   },
   headerName: {
     fontSize: fontSize.base,
     fontWeight: fontWeight.semi,
     color: theme.fg,
   },
+  headerSpacer: { width: spacing[24] },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   messageList: {
     padding: spacing[4],
@@ -230,7 +278,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: spacing[16],
   },
-  emptyText: { fontSize: fontSize.base, color: theme.fgMuted },
+  emptyIcon: { marginBottom: spacing[3] },
+  emptyTitle: {
+    fontSize: fontSize.base,
+    fontWeight: fontWeight.medium,
+    color: theme.fgSubtle,
+  },
+  emptySubtitle: {
+    fontSize: fontSize.sm,
+    color: theme.fgFaint,
+    marginTop: spacing[1],
+    textAlign: 'center',
+  },
   composer: {
     flexDirection: 'row',
     alignItems: 'flex-end',

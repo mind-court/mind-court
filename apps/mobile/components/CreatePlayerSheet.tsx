@@ -59,8 +59,8 @@ export function CreatePlayerSheet({ visible, onClose, onSave }: Props) {
 
         <View style={styles.switchRow}>
           <View>
-            <Text style={styles.switchLabel}>Kid Mode</Text>
-            <Text style={styles.switchSub}>Larger text, rounder corners, friendlier copy</Text>
+            <Text style={styles.switchLabel}>🎾  Kid Mode</Text>
+            <Text style={styles.switchSub}>Optimized for younger players — bigger touch targets, gentler language, simplified drills</Text>
           </View>
           <Switch
             value={isKidMode}

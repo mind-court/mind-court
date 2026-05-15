@@ -10,12 +10,20 @@ import {
 } from 'react-native'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import { BottomSheet } from './BottomSheet'
-import { theme, spacing, fontSize, fontWeight, radius } from '@mind-court/ui'
+import { theme, spacing, fontSize, fontWeight, radius, forest, sage } from '@mind-court/ui'
+
+const AVATAR_COLORS = [forest[500], forest[600], '#6B8CAE', '#7A8E70', '#A0845C', '#7A6B8A', sage[700]]
+export function avatarColor(name: string) {
+  let hash = 0
+  for (const c of name) hash = (hash * 31 + c.charCodeAt(0)) & 0xffff
+  return AVATAR_COLORS[hash % AVATAR_COLORS.length]
+}
 
 export type LessonInput = {
   playerName: string
   date: Date
   court: string
+  duration: string
   drills: string
   mentalCue: string
 }
@@ -30,6 +38,7 @@ export function CreateLessonSheet({ visible, onClose, onSave }: Props) {
   const [playerName, setPlayerName] = useState('')
   const [date, setDate] = useState(new Date())
   const [court, setCourt] = useState('')
+  const [duration, setDuration] = useState('')
   const [drills, setDrills] = useState('')
   const [mentalCue, setMentalCue] = useState('')
   const [showDatePicker, setShowDatePicker] = useState(false)
@@ -41,6 +50,7 @@ export function CreateLessonSheet({ visible, onClose, onSave }: Props) {
       playerName: playerName.trim(),
       date,
       court: court.trim(),
+      duration: duration.trim(),
       drills: drills.trim(),
       mentalCue: mentalCue.trim(),
     })
@@ -52,6 +62,7 @@ export function CreateLessonSheet({ visible, onClose, onSave }: Props) {
     setPlayerName('')
     setDate(new Date())
     setCourt('')
+    setDuration('')
     setDrills('')
     setMentalCue('')
   }
@@ -149,10 +160,25 @@ export function CreateLessonSheet({ visible, onClose, onSave }: Props) {
           />
         </Field>
 
+        <Field label="Duration">
+          <View style={styles.durationRow}>
+            <TextInput
+              style={styles.durationInput}
+              placeholder="e.g. 60"
+              placeholderTextColor={theme.fgFaint}
+              value={duration}
+              onChangeText={setDuration}
+              keyboardType="numeric"
+              returnKeyType="next"
+            />
+            <Text style={styles.durationSuffix}>min</Text>
+          </View>
+        </Field>
+
         <Field label="Drills & plan">
           <TextInput
             style={[styles.input, styles.textarea]}
-            placeholder={"One drill per line:\nCross-court forehands — 20 reps\nServe — first serve %"}
+            placeholder={"One drill per line:\nCross-court forehands — 20 reps\nServe placement — first ball %\nMatch play — first to 7"}
             placeholderTextColor={theme.fgFaint}
             value={drills}
             onChangeText={setDrills}
@@ -249,6 +275,27 @@ const styles = StyleSheet.create({
   textarea: {
     minHeight: 80,
     paddingTop: spacing[3],
+  },
+  durationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.bg,
+    borderWidth: 1,
+    borderColor: theme.border,
+    borderRadius: radius.md,
+    overflow: 'hidden',
+  },
+  durationInput: {
+    flex: 1,
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[3],
+    fontSize: fontSize.base,
+    color: theme.fg,
+  },
+  durationSuffix: {
+    fontSize: fontSize.sm,
+    color: theme.fgSubtle,
+    paddingRight: spacing[3],
   },
   row: {
     flexDirection: 'row',

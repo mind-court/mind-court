@@ -41,6 +41,7 @@ export function useLessons() {
     playerId?: string
     scheduledAt: Date
     court: string
+    durationMinutes?: number | null
     drills: string
     mentalCue: string
   }) {
@@ -53,6 +54,7 @@ export function useLessons() {
         player_name: input.playerName,
         scheduled_at: input.scheduledAt.toISOString(),
         court: input.court || null,
+        duration_minutes: input.durationMinutes ?? null,
         drills: input.drills || null,
         mental_cue: input.mentalCue || null,
       })

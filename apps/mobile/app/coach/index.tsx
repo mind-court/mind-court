@@ -34,6 +34,7 @@ export default function CoachToday() {
     playerName: string
     date: Date
     court: string
+    duration: string
     drills: string
     mentalCue: string
   }) {
@@ -41,6 +42,7 @@ export default function CoachToday() {
       playerName: input.playerName,
       scheduledAt: input.date,
       court: input.court,
+      durationMinutes: parseInt(input.duration) || null,
       drills: input.drills,
       mentalCue: input.mentalCue,
     })
