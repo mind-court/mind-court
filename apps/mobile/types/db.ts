@@ -13,6 +13,29 @@ export type Player = {
   full_name: string
   is_kid_mode: boolean
   created_at: string
+  skill_level: string | null
+  contact_phone: string | null
+  contact_email: string | null
+  birthdate: string | null
+  lesson_cadence: string | null
+  primary_focus: string | null
+  intake_notes: string | null
+  parent_name: string | null
+  parent_phone: string | null
+}
+
+export type PlayerIntake = {
+  fullName: string
+  isKidMode: boolean
+  skillLevel?: string
+  contactPhone?: string
+  contactEmail?: string
+  birthdate?: string
+  lessonCadence?: string
+  primaryFocus?: string
+  intakeNotes?: string
+  parentName?: string
+  parentPhone?: string
 }
 
 export type Lesson = {
@@ -44,6 +67,7 @@ export type Conversation = {
   player_name: string
   last_message: string | null
   last_message_at: string | null
+  last_read_at: string | null
   created_at: string
 }
 

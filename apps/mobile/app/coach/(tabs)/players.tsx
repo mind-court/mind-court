@@ -1,15 +1,14 @@
-import { useState } from 'react'
-import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native'
+import { useMemo, useState } from 'react'
+import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native'
 import { router } from 'expo-router'
-import { Feather } from '@expo/vector-icons'
-import { theme, spacing, fontSize, fontWeight, radius, forest, court } from '@mind-court/ui'
-import { Screen } from '../../components/Screen'
-import { usePlayers } from '../../lib/usePlayers'
-import { useLessons } from '../../lib/useLessons'
-import { CreatePlayerSheet } from '../../components/CreatePlayerSheet'
-import { avatarColor } from '../../lib/avatarColor'
-import { formatRelativeDate } from '../../lib/dateUtils'
-import type { Player, Lesson } from '../../types/db'
+import { theme, spacing, fontSize, fontWeight, radius, forest, court, BouncingBall, LogoMark } from '@mind-court/ui'
+import { Screen } from '../../../components/Screen'
+import { usePlayers } from '../../../lib/usePlayers'
+import { useLessons } from '../../../lib/useLessons'
+import { CreatePlayerSheet } from '../../../components/CreatePlayerSheet'
+import { avatarColor } from '../../../lib/avatarColor'
+import { formatRelativeDate } from '../../../lib/dateUtils'
+import type { Player, Lesson } from '../../../types/db'
 
 export default function Players() {
   const { players, loading, createPlayer } = usePlayers()
@@ -18,6 +17,29 @@ export default function Players() {
 
   const regularPlayers = players.filter(p => !p.is_kid_mode)
   const kidPlayers = players.filter(p => p.is_kid_mode)
+
+  // Players seen this week (most recent lesson within last 7 days), most-recent first.
+  const recentPlayers = useMemo(() => {
+    const sevenDaysAgo = Date.now() - 7 * 86400_000
+    const lastLessonByPlayer = new Map<string, number>() // playerId -> ts
+    for (const l of lessons) {
+      const ts = new Date(l.scheduled_at).getTime()
+      if (ts > Date.now()) continue          // skip future-scheduled
+      if (ts < sevenDaysAgo) continue        // outside the window
+      const key = l.player_id ?? l.player_name
+      if (!key) continue
+      const prev = lastLessonByPlayer.get(key) ?? 0
+      if (ts > prev) lastLessonByPlayer.set(key, ts)
+    }
+    return players
+      .map(p => ({
+        player: p,
+        lastTs: lastLessonByPlayer.get(p.id) ?? lastLessonByPlayer.get(p.full_name) ?? 0,
+      }))
+      .filter(x => x.lastTs > 0)
+      .sort((a, b) => b.lastTs - a.lastTs)
+      .map(x => x.player)
+  }, [players, lessons])
 
   return (
     <>
@@ -33,15 +55,22 @@ export default function Players() {
         </View>
 
         {loading ? (
-          <ActivityIndicator color={theme.primary} style={{ marginTop: spacing[8] }} />
+          <View style={styles.loader}>
+            <BouncingBall size={14} />
+          </View>
         ) : players.length === 0 ? (
           <View style={styles.emptyState}>
-            <Feather name="users" size={40} color={forest[300]} style={styles.emptyIcon} />
+            <View style={styles.emptyMark}>
+              <LogoMark size={72} variant="flat" />
+            </View>
             <Text style={styles.emptyTitle}>No players yet</Text>
             <Text style={styles.emptySub}>Add your first player to start tracking their progress.</Text>
           </View>
         ) : (
           <>
+            {recentPlayers.length > 0 && (
+              <RecentChips players={recentPlayers} />
+            )}
             <Text style={styles.sectionLabel}>
               {regularPlayers.length} player{regularPlayers.length !== 1 ? 's' : ''}
             </Text>
@@ -69,6 +98,42 @@ export default function Players() {
   )
 }
 
+// ─── Recent chips ────────────────────────────────────────────────────────────
+
+function RecentChips({ players }: { players: Player[] }) {
+  return (
+    <View style={styles.recentBlock}>
+      <Text style={styles.recentLabel}>SEEN THIS WEEK</Text>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.recentRow}
+      >
+        {players.map(p => {
+          const initials = p.full_name
+            .split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()
+          return (
+            <Pressable
+              key={p.id}
+              onPress={() => router.push(`/coach/player/${p.id}`)}
+              style={({ pressed }) => [styles.recentChip, pressed && { opacity: 0.7 }]}
+            >
+              <View style={styles.recentRingOuter}>
+                <View style={[styles.recentAvatar, { backgroundColor: avatarColor(p.full_name) }]}>
+                  <Text style={styles.recentInitials}>{initials}</Text>
+                </View>
+              </View>
+              <Text style={styles.recentName} numberOfLines={1}>
+                {p.full_name.split(' ')[0]}
+              </Text>
+            </Pressable>
+          )
+        })}
+      </ScrollView>
+    </View>
+  )
+}
+
 function PlayerCard({ player, lessons }: { player: Player; lessons: Lesson[] }) {
   const initials = player.full_name
     .split(' ')
@@ -85,6 +150,7 @@ function PlayerCard({ player, lessons }: { player: Player; lessons: Lesson[] }) 
     (a, b) => new Date(b.scheduled_at).getTime() - new Date(a.scheduled_at).getTime()
   )[0]
   const lastDate = lastLesson ? formatRelativeDate(new Date(lastLesson.scheduled_at)) : null
+
   const memberSince = new Date(player.created_at).toLocaleDateString('en-US', {
     month: 'long',
     year: 'numeric',
@@ -161,12 +227,14 @@ const styles = StyleSheet.create({
   kidSectionLabel: {
     marginTop: spacing[6],
   },
+  loader: { marginTop: spacing[8], alignItems: 'center' },
   emptyState: {
     marginTop: spacing[16],
     alignItems: 'center',
     paddingHorizontal: spacing[4],
   },
-  emptyIcon: {
+  emptyMark: {
+    opacity: 0.45,
     marginBottom: spacing[4],
   },
   emptyTitle: {
@@ -223,8 +291,7 @@ const styles = StyleSheet.create({
     color: theme.fgSubtle,
   },
   kidBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: theme.accentHover,
+    backgroundColor: court[100],
     borderRadius: radius.pill,
     paddingHorizontal: spacing[2],
     paddingVertical: 2,
@@ -232,7 +299,7 @@ const styles = StyleSheet.create({
   kidBadgeText: {
     fontSize: fontSize.xs,
     fontWeight: fontWeight.semi,
-    color: theme.fgOnAccent,
+    color: court[700],
   },
   cardRight: {
     flexDirection: 'row',
@@ -240,7 +307,7 @@ const styles = StyleSheet.create({
     gap: spacing[2],
   },
   lessonCountBadge: {
-    backgroundColor: court[100],
+    backgroundColor: forest[50],
     borderRadius: 999,
     paddingHorizontal: 6,
     paddingVertical: 2,
@@ -249,11 +316,60 @@ const styles = StyleSheet.create({
   lessonCountText: {
     fontSize: 11,
     fontWeight: fontWeight.bold,
-    color: court[700],
+    color: forest[700],
   },
   chevron: {
     fontSize: 22,
     color: theme.fgSubtle,
     lineHeight: 24,
+  },
+
+  // Recent chips
+  recentBlock: {
+    marginBottom: spacing[5],
+  },
+  recentLabel: {
+    fontSize: 10,
+    fontWeight: fontWeight.bold,
+    color: theme.fgSubtle,
+    letterSpacing: 1.5,
+    marginBottom: spacing[2],
+  },
+  recentRow: {
+    gap: spacing[3],
+    paddingRight: spacing[2],
+  },
+  recentChip: {
+    alignItems: 'center',
+    width: 56,
+  },
+  recentRingOuter: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    borderWidth: 2,
+    borderColor: court[500],
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 2,
+  },
+  recentAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  recentInitials: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
+    color: '#fff',
+  },
+  recentName: {
+    fontSize: 11,
+    fontWeight: fontWeight.medium,
+    color: theme.fgMuted,
+    marginTop: 4,
+    maxWidth: 56,
   },
 })
