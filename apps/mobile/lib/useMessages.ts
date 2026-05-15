@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { supabase } from './supabase'
 import { useAuth } from './auth'
+import { useRefreshOnForeground } from './useRefreshOnForeground'
 import type { Message } from '../types/db'
 
 export function useMessages(conversationId: string) {
@@ -20,6 +21,7 @@ export function useMessages(conversationId: string) {
   }, [conversationId])
 
   useEffect(() => { fetch() }, [fetch])
+  useRefreshOnForeground(fetch)
 
   // Real-time subscription
   useEffect(() => {
