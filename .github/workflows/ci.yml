@@ -46,9 +46,17 @@ jobs:
           path: tsc.log
           retention-days: 3
 
+  # Dormant by default — costs Anthropic API tokens. To enable:
+  #   Settings → Secrets and variables → Actions → Variables → New variable
+  #   Name: ENABLE_BOT_FIX   Value: true
+  # And add the ANTHROPIC_API_KEY secret. Until then this job is skipped and
+  # you fix typecheck failures locally with the fix-typecheck agent.
   auto-fix:
     needs: typecheck
-    if: needs.typecheck.outputs.passed == 'false' && !contains(github.event.pull_request.labels.*.name, 'skip-bot')
+    if: |
+      vars.ENABLE_BOT_FIX == 'true' &&
+      needs.typecheck.outputs.passed == 'false' &&
+      !contains(github.event.pull_request.labels.*.name, 'skip-bot')
     runs-on: ubuntu-latest
     permissions:
       contents: write
