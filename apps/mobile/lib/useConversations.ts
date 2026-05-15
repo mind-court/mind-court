@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useId } from 'react'
 import { supabase } from './supabase'
 import { useAuth } from './auth'
 import { useRefreshOnForeground } from './useRefreshOnForeground'
@@ -6,6 +6,7 @@ import type { Conversation } from '../types/db'
 
 export function useConversations() {
   const { user } = useAuth()
+  const instanceId = useId()
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -27,7 +28,7 @@ export function useConversations() {
   useEffect(() => {
     if (!user) return
     const channel = supabase
-      .channel('conversations-changes')
+      .channel(`conversations-${instanceId}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'conversations', filter: `coach_id=eq.${user.id}` },
