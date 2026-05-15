@@ -1,4 +1,4 @@
-import { ScrollView, View, StyleSheet, type ViewStyle, type ScrollViewProps } from 'react-native'
+import { ScrollView, View, type ViewStyle, type ScrollViewProps } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { theme, spacing } from '@mind-court/ui'
 
@@ -6,16 +6,21 @@ type Props = ScrollViewProps & {
   children: React.ReactNode
   scroll?: boolean
   style?: ViewStyle
-  noPadding?: boolean
+  contentStyle?: ViewStyle
 }
 
-export function Screen({ children, scroll = true, style, noPadding, ...rest }: Props) {
+export function Screen({ children, scroll = true, style, contentStyle, ...rest }: Props) {
   const insets = useSafeAreaInsets()
-  const paddingTop = insets.top + spacing[4]
+
+  const pad = {
+    paddingTop: insets.top + spacing[4],
+    paddingBottom: insets.bottom + spacing[6],
+    paddingHorizontal: spacing[4],
+  }
 
   if (!scroll) {
     return (
-      <View style={[styles.base, { paddingTop: noPadding ? insets.top : paddingTop }, style]}>
+      <View style={[{ flex: 1, backgroundColor: theme.bg, ...pad }, style]}>
         {children}
       </View>
     )
@@ -23,21 +28,13 @@ export function Screen({ children, scroll = true, style, noPadding, ...rest }: P
 
   return (
     <ScrollView
-      style={styles.base}
-      contentContainerStyle={[
-        styles.content,
-        { paddingTop: noPadding ? insets.top : paddingTop },
-        style,
-      ]}
+      style={{ flex: 1, backgroundColor: theme.bg }}
+      contentContainerStyle={[{ flexGrow: 1, ...pad }, contentStyle]}
       keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
       {...rest}
     >
       {children}
     </ScrollView>
   )
 }
-
-const styles = StyleSheet.create({
-  base: { flex: 1, backgroundColor: theme.bg },
-  content: { padding: spacing[4], flexGrow: 1 },
-})

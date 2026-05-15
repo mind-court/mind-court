@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   View, Text, StyleSheet, FlatList, TextInput,
-  Pressable, KeyboardAvoidingView, Platform, ActivityIndicator,
+  Pressable, KeyboardAvoidingView, ActivityIndicator,
 } from 'react-native'
 import { useLocalSearchParams, router } from 'expo-router'
 import { supabase } from '../../../lib/supabase'
@@ -92,7 +92,7 @@ export default function Thread() {
       )}
 
       {/* Composer */}
-      <View style={styles.composer}>
+      <View style={[styles.composer, { paddingBottom: insets.bottom + spacing[3] }]}>
         <TextInput
           style={styles.input}
           placeholder="Message…"
@@ -235,7 +235,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-end',
     padding: spacing[3],
-    paddingBottom: Platform.OS === 'ios' ? spacing[5] : spacing[3],
+    paddingBottom: spacing[3],
     borderTopWidth: 1,
     borderTopColor: theme.border,
     backgroundColor: theme.bgElevated,
