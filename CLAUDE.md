@@ -47,3 +47,25 @@ Kid Mode: bumped radii, swapped primary color, larger type. Scoped via `data-mod
 - File-based routing — new screens go under `apps/mobile/app/`.
 - No build step for the design system (CDN-loaded React/Babel).
 - Auth state managed in `lib/auth.tsx`; layout guards in `app/_layout.tsx`.
+
+## Workflow
+
+All work lands on `main` via a merged pull request. Never commit directly to `main`, and never push to `origin/main`.
+
+```bash
+git checkout -b <type>/<short-name>   # feat/, fix/, chore/, refactor/, docs/
+# ... edit, commit on the branch ...
+git push -u origin HEAD
+gh pr create
+```
+
+Merge through GitHub (squash preferred). A project hook in `.claude/settings.json` blocks direct commits and pushes to `main`; if it fires, fix the workflow rather than bypassing.
+
+## Review automation
+
+`.claude/agents/review-*.md` define a layered code-review system:
+- `review-orchestrator` — dispatches to specialists, aggregates findings
+- Verticals: `review-lessons`, `review-players`, `review-messages`, `review-account`
+- Horizontals: `review-security`, `review-supabase`, `review-design-tokens`, `review-types`, `review-density`
+
+Invoke by asking Claude to "review this branch" or "review PR #N" — it will use `review-orchestrator`.
