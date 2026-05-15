@@ -79,7 +79,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: radius.xl,
     borderTopRightRadius: radius.xl,
     paddingBottom: 40,
-    height: SCREEN_HEIGHT * 0.75,
+    height: SCREEN_HEIGHT * 0.85,
   },
   handle: {
     width: 36,
