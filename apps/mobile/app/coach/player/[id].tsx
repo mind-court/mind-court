@@ -7,6 +7,7 @@ import { Feather } from '@expo/vector-icons'
 import { supabase } from '../../../lib/supabase'
 import { useLessons } from '../../../lib/useLessons'
 import { usePlayers } from '../../../lib/usePlayers'
+import { useConversations } from '../../../lib/useConversations'
 import { EditPlayerSheet } from '../../../components/EditPlayerSheet'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { theme, spacing, fontSize, fontWeight, radius, forest, court } from '@mind-court/ui'
@@ -19,6 +20,7 @@ export default function PlayerDetail() {
   const insets = useSafeAreaInsets()
   const { lessons } = useLessons()
   const { players, deletePlayer, updatePlayer } = usePlayers()
+  const { startConversation } = useConversations()
   const [showEdit, setShowEdit] = useState(false)
   const [player, setPlayer] = useState<Player | null>(null)
 
@@ -39,6 +41,12 @@ export default function PlayerDetail() {
     .sort((a, b) => new Date(b.scheduled_at).getTime() - new Date(a.scheduled_at).getTime())
 
   const totalMinutes = playerLessons.reduce((sum, l) => sum + (l.duration_minutes ?? 0), 0)
+
+  async function handleMessage() {
+    if (!player) return
+    const { data } = await startConversation(player.full_name, player.id)
+    if (data) router.push(`/coach/thread/${data.id}`)
+  }
 
   async function handleDelete() {
     Alert.alert(
@@ -102,6 +110,17 @@ export default function PlayerDetail() {
           )}
           <Text style={styles.memberSince}>Member since {memberSince}</Text>
         </View>
+      </View>
+
+      {/* Quick actions */}
+      <View style={styles.actionsRow}>
+        <Pressable
+          style={({ pressed }) => [styles.actionBtn, pressed && styles.actionBtnPressed]}
+          onPress={handleMessage}
+        >
+          <Feather name="message-circle" size={18} color={theme.primary} />
+          <Text style={styles.actionBtnText}>Message</Text>
+        </Pressable>
       </View>
 
       {/* Stats */}
@@ -253,6 +272,29 @@ const styles = StyleSheet.create({
   },
   kidBadgeText: { fontSize: fontSize.xs, fontWeight: fontWeight.semi, color: court[300] },
   memberSince: { fontSize: fontSize.xs, color: forest[200] },
+
+  actionsRow: {
+    flexDirection: 'row',
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[4],
+    gap: spacing[3],
+    borderBottomWidth: 1,
+    borderBottomColor: theme.borderSubtle,
+  },
+  actionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing[2],
+    backgroundColor: theme.bgElevated,
+    borderWidth: 1,
+    borderColor: theme.border,
+    borderRadius: radius.md,
+    paddingVertical: spacing[3],
+  },
+  actionBtnPressed: { backgroundColor: theme.bgSunken },
+  actionBtnText: { fontSize: fontSize.sm, fontWeight: fontWeight.semi, color: theme.primary },
 
   statsRow: {
     flexDirection: 'row',
