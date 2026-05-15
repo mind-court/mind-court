@@ -1,16 +1,24 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   View, Text, StyleSheet, FlatList, TextInput,
-  Pressable, KeyboardAvoidingView, ActivityIndicator,
+  Pressable, KeyboardAvoidingView, ActivityIndicator, Platform,
 } from 'react-native'
 import { useLocalSearchParams, router } from 'expo-router'
+import { Feather } from '@expo/vector-icons'
 import { supabase } from '../../../lib/supabase'
 import { useMessages } from '../../../lib/useMessages'
 import { useAuth } from '../../../lib/auth'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { theme, spacing, fontSize, fontWeight, radius, forest } from '@mind-court/ui'
+import { theme, spacing, fontSize, fontWeight, radius, forest, sage } from '@mind-court/ui'
 import type { Conversation } from '../../../lib/useConversations'
 import type { Message } from '../../../lib/useMessages'
+
+const AVATAR_COLORS = [forest[500], forest[600], '#6B8CAE', '#7A8E70', '#A0845C', '#7A6B8A', sage[700]]
+function avatarColor(name: string): string {
+  let hash = 0
+  for (const c of name) hash = (hash * 31 + c.charCodeAt(0)) & 0xffff
+  return AVATAR_COLORS[hash % AVATAR_COLORS.length]
+}
 
 export default function Thread() {
   const { id } = useLocalSearchParams<{ id: string }>()
@@ -55,10 +63,21 @@ export default function Thread() {
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + spacing[3] }]}>
         <Pressable onPress={() => router.back()} hitSlop={12} style={styles.backBtn}>
-          <Text style={styles.backText}>‹</Text>
+          <Feather name="arrow-left" size={18} color={theme.primary} />
+          <Text style={styles.backText}> Messages</Text>
         </Pressable>
-        <Text style={styles.headerName}>{conversation?.player_name ?? '…'}</Text>
-        <View style={{ width: 32 }} />
+        <View style={styles.headerCenter}>
+          <View style={[
+            styles.headerAvatar,
+            { backgroundColor: avatarColor(conversation?.player_name ?? '') },
+          ]}>
+            <Text style={styles.headerAvatarText}>
+              {(conversation?.player_name ?? '').split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()}
+            </Text>
+          </View>
+          <Text style={styles.headerName}>{conversation?.player_name ?? '…'}</Text>
+        </View>
+        <View style={styles.headerSpacer} />
       </View>
 
       {/* Messages */}
@@ -84,7 +103,9 @@ export default function Thread() {
           )}
           ListEmptyComponent={
             <View style={styles.emptyThread}>
-              <Text style={styles.emptyText}>No messages yet. Say something.</Text>
+              <Feather name="message-circle" size={36} color={theme.fgFaint} style={styles.emptyIcon} />
+              <Text style={styles.emptyTitle}>Start the conversation</Text>
+              <Text style={styles.emptySubtitle}>Send a drill tip, schedule note, or feedback.</Text>
             </View>
           }
           onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
@@ -166,12 +187,36 @@ const styles = StyleSheet.create({
     borderBottomColor: theme.borderSubtle,
     backgroundColor: theme.bgElevated,
   },
-  backBtn: { width: 32 },
-  backText: {
-    fontSize: 28,
-    color: theme.primary,
-    lineHeight: 32,
+  backBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[1],
   },
+  backText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.medium,
+    color: theme.primary,
+  },
+  headerCenter: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing[2],
+  },
+  headerAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerAvatarText: {
+    fontSize: 11,
+    fontWeight: fontWeight.bold,
+    color: '#fff',
+  },
+  headerSpacer: { width: 80 },
   headerName: {
     fontSize: fontSize.base,
     fontWeight: fontWeight.semi,
@@ -225,12 +270,20 @@ const styles = StyleSheet.create({
     marginHorizontal: spacing[1],
   },
   emptyThread: {
-    flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
     paddingTop: spacing[16],
   },
-  emptyText: { fontSize: fontSize.base, color: theme.fgMuted },
+  emptyIcon: { marginBottom: spacing[3] },
+  emptyTitle: {
+    fontSize: fontSize.base,
+    fontWeight: fontWeight.medium,
+    color: theme.fgSubtle,
+  },
+  emptySubtitle: {
+    fontSize: fontSize.sm,
+    color: theme.fgFaint,
+    marginTop: spacing[1],
+  },
   composer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
