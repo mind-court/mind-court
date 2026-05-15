@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { supabase } from './supabase'
 import { useAuth } from './auth'
+import { useRefreshOnForeground } from './useRefreshOnForeground'
 
 export function useDrillCompletions(lessonId: string | null) {
   const { user } = useAuth()
@@ -19,6 +20,7 @@ export function useDrillCompletions(lessonId: string | null) {
   }, [user, lessonId])
 
   useEffect(() => { fetch() }, [fetch])
+  useRefreshOnForeground(fetch)
 
   async function toggleDrill(drillIndex: number) {
     if (!user || !lessonId) return

@@ -1,41 +1,45 @@
 import { useState } from 'react'
 import {
   View, Text, StyleSheet, FlatList, Pressable,
-  ActivityIndicator, Modal, TextInput,
+  ActivityIndicator, TextInput,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { Feather } from '@expo/vector-icons'
-import { theme, spacing, fontSize, fontWeight, radius, forest, court, sage } from '@mind-court/ui'
+import { theme, spacing, fontSize, fontWeight, radius, forest, court } from '@mind-court/ui'
 import { useConversations } from '../../lib/useConversations'
 import { usePlayers } from '../../lib/usePlayers'
-import type { Conversation } from '../../lib/useConversations'
+import { PlayerPickerSheet } from '../../components/PlayerPickerSheet'
+import { avatarColor } from '../../lib/avatarColor'
+import type { Conversation, Player } from '../../types/db'
 
-const AVATAR_COLORS = [
-  forest[500], forest[600], '#6B8CAE', '#7A8E70', '#A0845C', '#7A6B8A', sage[700],
-]
-
-function avatarColor(name: string): string {
-  let hash = 0
-  for (const c of name) hash = (hash * 31 + c.charCodeAt(0)) & 0xffff
-  return AVATAR_COLORS[hash % AVATAR_COLORS.length]
-}
-
-function isRecent(conversation: Conversation): boolean {
-  if (!conversation.last_message_at) return false
-  return Date.now() - new Date(conversation.last_message_at).getTime() < 24 * 60 * 60 * 1000
+function isRecent(dateStr: string | null): boolean {
+  if (!dateStr) return false
+  return Date.now() - new Date(dateStr).getTime() < 86400000
 }
 
 export default function Messages() {
   const { conversations, loading, startConversation } = useConversations()
   const { players } = usePlayers()
   const [showPicker, setShowPicker] = useState(false)
+  const [query, setQuery] = useState('')
   const insets = useSafeAreaInsets()
 
-  async function handlePickPlayer(playerName: string, playerId?: string) {
-    setShowPicker(false)
-    const { data, error } = await startConversation(playerName, playerId)
-    if (!error && data) router.push(`/coach/thread/${data.id}`)
+  const sorted = [...conversations].sort((a, b) => {
+    const ra = isRecent(a.last_message_at)
+    const rb = isRecent(b.last_message_at)
+    if (ra && !rb) return -1
+    if (!ra && rb) return 1
+    return (b.last_message_at ?? '').localeCompare(a.last_message_at ?? '')
+  })
+
+  const filtered = query.trim()
+    ? sorted.filter(c => c.player_name.toLowerCase().includes(query.toLowerCase()))
+    : sorted
+
+  async function handlePickPlayer(player: Player) {
+    const { data, error } = await startConversation(player.full_name, player.id)
+    if (data) router.push(`/coach/thread/${data.id}`)
   }
 
   return (
@@ -51,31 +55,37 @@ export default function Messages() {
           </Pressable>
         </View>
 
-        <View style={styles.searchContainer}>
-          <View style={styles.searchBar}>
-            <Feather name="search" size={15} color={theme.fgFaint} />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search conversations"
-              placeholderTextColor={theme.fgFaint}
-              editable={false}
-            />
-          </View>
+        <View style={styles.searchBar}>
+          <Feather name="search" size={16} color={theme.fgFaint} />
+          <TextInput
+            placeholder="Search conversations"
+            placeholderTextColor={theme.fgFaint}
+            value={query}
+            onChangeText={setQuery}
+            style={styles.searchInput}
+            returnKeyType="search"
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
         </View>
 
         {loading ? (
-          <ActivityIndicator color={theme.primary} style={styles.loader} />
+          <ActivityIndicator color={theme.primary} style={{ marginTop: spacing[8] }} />
         ) : conversations.length === 0 ? (
           <View style={styles.empty}>
             <Feather name="message-circle" size={40} color={forest[300]} style={styles.emptyIcon} />
             <Text style={styles.emptyTitle}>No messages yet</Text>
-            <Text style={styles.emptySub}>
-              Start a conversation with one of your players to get coaching feedback and scheduling going.
-            </Text>
+            <Text style={styles.emptySub}>Start a conversation with one of your players.</Text>
+          </View>
+        ) : filtered.length === 0 ? (
+          <View style={styles.empty}>
+            <Feather name="search" size={32} color={forest[300]} style={styles.emptyIcon} />
+            <Text style={styles.emptyTitle}>No results</Text>
+            <Text style={styles.emptySub}>No conversations matching "{query}".</Text>
           </View>
         ) : (
           <FlatList
-            data={conversations}
+            data={filtered}
             keyExtractor={c => c.id}
             renderItem={({ item }) => (
               <ConversationRow
@@ -88,34 +98,12 @@ export default function Messages() {
         )}
       </View>
 
-      {/* Player picker modal */}
-      <Modal visible={showPicker} transparent animationType="fade" onRequestClose={() => setShowPicker(false)}>
-        <Pressable style={styles.backdrop} onPress={() => setShowPicker(false)} />
-        <View style={styles.picker}>
-          <Text style={styles.pickerTitle}>Message a player</Text>
-          {players.length === 0 ? (
-            <Text style={styles.pickerEmpty}>Add players first from the Players tab.</Text>
-          ) : (
-            <FlatList
-              data={players}
-              keyExtractor={p => p.id}
-              renderItem={({ item }) => (
-                <Pressable
-                  style={({ pressed }) => [styles.pickerRow, pressed && styles.pickerRowPressed]}
-                  onPress={() => handlePickPlayer(item.full_name, item.id)}
-                >
-                  <View style={[styles.pickerAvatar, { backgroundColor: avatarColor(item.full_name) }]}>
-                    <Text style={styles.pickerAvatarText}>
-                      {item.full_name.split(' ').map((n: string) => n[0]).slice(0, 2).join('').toUpperCase()}
-                    </Text>
-                  </View>
-                  <Text style={styles.pickerName}>{item.full_name}</Text>
-                </Pressable>
-              )}
-            />
-          )}
-        </View>
-      </Modal>
+      <PlayerPickerSheet
+        visible={showPicker}
+        onClose={() => setShowPicker(false)}
+        players={players}
+        onSelect={handlePickPlayer}
+      />
     </>
   )
 }
@@ -128,30 +116,27 @@ function ConversationRow({ conversation, onPress }: { conversation: Conversation
     ? formatTime(new Date(conversation.last_message_at))
     : ''
 
-  const recent = isRecent(conversation)
-  const color = avatarColor(conversation.player_name)
+  const recent = isRecent(conversation.last_message_at)
 
   return (
     <Pressable
       style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
       onPress={onPress}
     >
-      {recent ? <View style={styles.unreadDot} /> : <View style={styles.unreadSpacer} />}
-      <View style={[styles.avatar, { backgroundColor: color }]}>
+      <View style={[styles.recentDot, recent && styles.recentDotVisible]} />
+      <View style={[styles.avatar, { backgroundColor: avatarColor(conversation.player_name) }]}>
         <Text style={styles.avatarText}>{initials}</Text>
       </View>
       <View style={styles.rowInfo}>
         <View style={styles.rowTop}>
-          <Text style={recent ? [styles.rowName, styles.rowNameBold] : styles.rowName}>
-            {conversation.player_name}
-          </Text>
+          <Text style={[styles.rowName, recent && styles.rowNameRecent]}>{conversation.player_name}</Text>
           {time ? <Text style={styles.rowTime}>{time}</Text> : null}
         </View>
-        <Text style={styles.rowPreview} numberOfLines={1}>
+        <Text style={[styles.rowPreview, recent && styles.rowPreviewRecent]} numberOfLines={1}>
           {conversation.last_message ?? 'No messages yet'}
         </Text>
       </View>
-      <Feather name="chevron-right" size={16} color={theme.fgSubtle} />
+      <Text style={styles.chevron}>›</Text>
     </Pressable>
   )
 }
@@ -172,7 +157,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: spacing[4],
-    paddingBottom: spacing[3],
   },
   heading: {
     fontSize: fontSize['3xl'],
@@ -188,42 +172,43 @@ const styles = StyleSheet.create({
   },
   addBtnPressed: { backgroundColor: theme.primaryPress },
   addBtnText: { fontSize: fontSize.sm, fontWeight: fontWeight.semi, color: '#fff' },
-
-  searchContainer: {
-    paddingHorizontal: spacing[4],
-    paddingBottom: spacing[3],
-  },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing[2],
     backgroundColor: theme.bgElevated,
     borderWidth: 1,
     borderColor: theme.border,
     borderRadius: radius.md,
+    marginHorizontal: spacing[4],
+    marginBottom: spacing[3],
     paddingHorizontal: spacing[3],
     paddingVertical: spacing[2],
+    gap: spacing[2],
   },
   searchInput: {
     flex: 1,
-    fontSize: fontSize.base,
+    fontSize: fontSize.sm,
     color: theme.fg,
   },
-
-  loader: { marginTop: spacing[8] },
   list: { paddingHorizontal: spacing[4], paddingBottom: spacing[16] },
   empty: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    gap: spacing[2],
-    paddingHorizontal: spacing[8],
     paddingBottom: spacing[16],
+    paddingHorizontal: spacing[8],
   },
-  emptyIcon: { marginBottom: spacing[2] },
+  emptyIcon: {
+    marginBottom: spacing[4],
+  },
   emptyTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.semi, color: theme.fg },
-  emptySub: { fontSize: fontSize.base, color: theme.fgMuted, textAlign: 'center' },
-
+  emptySub: {
+    fontSize: fontSize.sm,
+    color: theme.fgMuted,
+    textAlign: 'center',
+    marginTop: spacing[1],
+    paddingHorizontal: spacing[8],
+  },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -233,17 +218,15 @@ const styles = StyleSheet.create({
     gap: spacing[3],
   },
   rowPressed: { backgroundColor: theme.bgSunken },
-  unreadDot: {
+  recentDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: court[500],
+    backgroundColor: 'transparent',
     flexShrink: 0,
   },
-  unreadSpacer: {
-    width: 8,
-    height: 8,
-    flexShrink: 0,
+  recentDotVisible: {
+    backgroundColor: court[500],
   },
   avatar: {
     width: 44, height: 44, borderRadius: 22,
@@ -253,46 +236,10 @@ const styles = StyleSheet.create({
   avatarText: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: '#fff' },
   rowInfo: { flex: 1, gap: 3 },
   rowTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  rowName: { fontSize: fontSize.base, fontWeight: fontWeight.medium, color: theme.fg },
-  rowNameBold: { fontWeight: fontWeight.semi },
+  rowName: { fontSize: fontSize.base, fontWeight: fontWeight.semi, color: theme.fg },
+  rowNameRecent: { fontWeight: fontWeight.bold },
   rowTime: { fontSize: fontSize.xs, color: theme.fgFaint },
-  rowPreview: { fontSize: fontSize.sm, color: theme.fgMuted },
-
-  // Picker
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(15,31,24,0.4)',
-  },
-  picker: {
-    position: 'absolute',
-    bottom: 0, left: 0, right: 0,
-    backgroundColor: theme.bgElevated,
-    borderTopLeftRadius: radius.xl,
-    borderTopRightRadius: radius.xl,
-    padding: spacing[5],
-    paddingBottom: 40,
-    maxHeight: '60%',
-  },
-  pickerTitle: {
-    fontSize: fontSize.lg,
-    fontWeight: fontWeight.bold,
-    color: theme.fg,
-    marginBottom: spacing[4],
-  },
-  pickerEmpty: { fontSize: fontSize.base, color: theme.fgMuted },
-  pickerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing[3],
-    paddingVertical: spacing[3],
-    borderBottomWidth: 1,
-    borderBottomColor: theme.borderSubtle,
-  },
-  pickerRowPressed: { opacity: 0.6 },
-  pickerAvatar: {
-    width: 36, height: 36, borderRadius: 18,
-    justifyContent: 'center', alignItems: 'center',
-  },
-  pickerAvatarText: { fontSize: fontSize.xs, fontWeight: fontWeight.bold, color: '#fff' },
-  pickerName: { fontSize: fontSize.base, fontWeight: fontWeight.medium, color: theme.fg },
+  rowPreview: { fontSize: fontSize.sm, color: theme.fgMuted, fontWeight: fontWeight.regular },
+  rowPreviewRecent: { fontWeight: fontWeight.medium },
+  chevron: { fontSize: 22, color: theme.fgSubtle, lineHeight: 24 },
 })

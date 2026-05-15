@@ -5,44 +5,60 @@ import { Feather } from '@expo/vector-icons'
 import { theme, spacing, fontSize, fontWeight, radius, forest, court } from '@mind-court/ui'
 import { Screen } from '../../components/Screen'
 import { CreateLessonSheet } from '../../components/CreateLessonSheet'
-import { useAuth } from '../../lib/auth'
 import { useLessons } from '../../lib/useLessons'
+import { usePlayers } from '../../lib/usePlayers'
+import { useAuth } from '../../lib/auth'
+import { isSameDay } from '../../lib/dateUtils'
 import type { Lesson } from '../../types/db'
 
 export default function CoachToday() {
-  const { profile } = useAuth()
   const { lessons, loading, createLesson } = useLessons()
+  const { players } = usePlayers()
+  const { profile } = useAuth()
   const [showCreate, setShowCreate] = useState(false)
 
-  const firstName = profile?.full_name?.split(' ')[0] ?? 'Coach'
-  const hour = new Date().getHours()
-  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
-
   const today = new Date()
+  const hour = today.getHours()
+  const greeting = hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening'
+  const firstName = profile?.full_name?.split(' ')[0] ?? 'Coach'
+
   const todayLessons = lessons.filter(l => isSameDay(new Date(l.scheduled_at), today))
-  const futureLessons = lessons
+
+  const upcomingLessons = lessons
     .filter(l => {
       const d = new Date(l.scheduled_at)
       return d > today && !isSameDay(d, today)
     })
-    .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime())
-  const upcomingLessons = futureLessons.slice(0, 4)
+    .slice(0, 4)
 
-  const hasAnyLessons = todayLessons.length > 0 || upcomingLessons.length > 0
+  const recentLessons = lessons
+    .filter(l => {
+      const d = new Date(l.scheduled_at)
+      return d < today && !isSameDay(d, today)
+    })
+    .sort((a, b) => new Date(b.scheduled_at).getTime() - new Date(a.scheduled_at).getTime())
+    .slice(0, 3)
+
+  const upcomingCount = lessons.filter(l => {
+    const d = new Date(l.scheduled_at)
+    return d > today && !isSameDay(d, today)
+  }).length
 
   async function handleSave(input: {
     playerName: string
+    playerId?: string
     date: Date
     court: string
     duration: string
     drills: string
     mentalCue: string
   }) {
-    await createLesson({
+    return createLesson({
       playerName: input.playerName,
+      playerId: input.playerId,
       scheduledAt: input.date,
       court: input.court,
-      durationMinutes: parseInt(input.duration) || null,
+      durationMinutes: input.duration ? parseInt(input.duration, 10) : null,
       drills: input.drills,
       mentalCue: input.mentalCue,
     })
@@ -65,45 +81,37 @@ export default function CoachToday() {
         </View>
 
         <View style={styles.statsRow}>
-          <View style={[styles.statCard, styles.statCardAccent]}>
-            <Text style={styles.statValueAccent}>{todayLessons.length}</Text>
-            <Text style={styles.statLabelAccent}>lessons today</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statValue}>{futureLessons.length}</Text>
-            <Text style={styles.statLabel}>upcoming</Text>
-          </View>
+          <StatCard label="Today" value={String(todayLessons.length)} hint="on court today" accent />
+          <StatCard label="Upcoming" value={String(upcomingCount)} />
         </View>
 
+        <Text style={styles.sectionLabel}>Today's schedule</Text>
+
         {loading ? (
-          <ActivityIndicator color={theme.primary} style={styles.loader} />
-        ) : !hasAnyLessons ? (
+          <ActivityIndicator color={theme.primary} style={{ marginTop: spacing[4] }} />
+        ) : lessons.length === 0 ? (
           <View style={styles.emptyState}>
             <Feather name="calendar" size={40} color={forest[300]} style={styles.emptyIcon} />
             <Text style={styles.emptyTitle}>Your schedule is clear.</Text>
-            <Text style={styles.emptySub}>Add your first lesson to get started.</Text>
+            <Text style={styles.emptySub}>Tap + Add lesson to put your first session on the books.</Text>
           </View>
+        ) : todayLessons.length === 0 ? (
+          <Text style={styles.empty}>No lessons today.</Text>
         ) : (
-          <>
-            {todayLessons.length > 0 && (
-              <>
-                <Text style={styles.sectionLabel}>Today's schedule</Text>
-                {todayLessons.map(lesson => (
-                  <LessonRow key={lesson.id} lesson={lesson} />
-                ))}
-              </>
-            )}
+          todayLessons.map(lesson => <LessonRow key={lesson.id} lesson={lesson} />)
+        )}
 
-            {upcomingLessons.length > 0 && (
-              <>
-                <Text style={todayLessons.length > 0 ? [styles.sectionLabel, styles.sectionLabelSpaced] : styles.sectionLabel}>
-                  Upcoming
-                </Text>
-                {upcomingLessons.map(lesson => (
-                  <LessonRow key={lesson.id} lesson={lesson} muted />
-                ))}
-              </>
-            )}
+        {upcomingLessons.length > 0 && (
+          <>
+            <Text style={[styles.sectionLabel, styles.upcomingLabel]}>Upcoming</Text>
+            {upcomingLessons.map(lesson => <LessonRow key={lesson.id} lesson={lesson} />)}
+          </>
+        )}
+
+        {recentLessons.length > 0 && (
+          <>
+            <Text style={[styles.sectionLabel, styles.upcomingLabel]}>Recent</Text>
+            {recentLessons.map(lesson => <LessonRow key={lesson.id} lesson={lesson} faded />)}
           </>
         )}
       </Screen>
@@ -112,23 +120,38 @@ export default function CoachToday() {
         visible={showCreate}
         onClose={() => setShowCreate(false)}
         onSave={handleSave}
+        players={players}
       />
     </>
   )
 }
 
-function LessonRow({ lesson, muted = false }: { lesson: Lesson; muted?: boolean }) {
+function StatCard({ label, value, hint, accent }: { label: string; value: string; hint?: string; accent?: boolean }) {
+  return (
+    <View style={[styles.statCard, accent && styles.statCardAccent]}>
+      <Text style={[styles.statValue, accent && styles.statValueAccent]}>{value}</Text>
+      <Text style={[styles.statLabel, accent && styles.statLabelAccent]}>{label}</Text>
+      {hint ? <Text style={[styles.statHint, accent && styles.statHintAccent]}>{hint}</Text> : null}
+    </View>
+  )
+}
+
+function LessonRow({ lesson, faded }: { lesson: Lesson; faded?: boolean }) {
   const time = new Date(lesson.scheduled_at).toLocaleTimeString('en-US', {
     hour: 'numeric', minute: '2-digit',
   })
+  const dateLabel = faded ? new Date(lesson.scheduled_at).toLocaleDateString('en-US', {
+    weekday: 'short', month: 'short', day: 'numeric',
+  }) : null
   return (
     <Pressable
-      style={({ pressed }) => [styles.lessonRow, pressed && styles.lessonRowPressed]}
+      style={({ pressed }) => [styles.lessonRow, faded && styles.lessonRowFaded, pressed && styles.lessonRowPressed]}
       onPress={() => router.push(`/coach/session/${lesson.id}`)}
     >
-      <Text style={muted ? [styles.lessonTime, styles.lessonTimeMuted] : styles.lessonTime}>
-        {time}
-      </Text>
+      <View style={styles.lessonTimeCol}>
+        {dateLabel ? <Text style={styles.lessonDate}>{dateLabel}</Text> : null}
+        <Text style={styles.lessonTime}>{time}</Text>
+      </View>
       <View style={styles.lessonInfo}>
         <Text style={styles.lessonPlayer}>{lesson.player_name}</Text>
         {lesson.court ? <Text style={styles.lessonCourt}>{lesson.court}</Text> : null}
@@ -137,22 +160,14 @@ function LessonRow({ lesson, muted = false }: { lesson: Lesson; muted?: boolean 
         ) : null}
       </View>
       <View style={styles.lessonRight}>
-        {lesson.duration_minutes != null && (
+        {lesson.duration_minutes != null ? (
           <View style={styles.durationBadge}>
             <Text style={styles.durationBadgeText}>{lesson.duration_minutes}m</Text>
           </View>
-        )}
-        <Feather name="chevron-right" size={16} color={theme.fgSubtle} />
+        ) : null}
+        <Feather name="chevron-right" size={16} color={theme.fgFaint} />
       </View>
     </Pressable>
-  )
-}
-
-function isSameDay(a: Date, b: Date) {
-  return (
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate()
   )
 }
 
@@ -172,11 +187,11 @@ const styles = StyleSheet.create({
     marginBottom: spacing[6],
   },
   heading: {
-    flex: 1,
-    fontSize: fontSize['2xl'],
+    fontSize: fontSize['3xl'],
     fontWeight: fontWeight.bold,
     color: theme.fg,
     letterSpacing: -0.5,
+    flex: 1,
     marginRight: spacing[3],
   },
   addBtn: {
@@ -214,8 +229,6 @@ const styles = StyleSheet.create({
     color: theme.fg,
   },
   statValueAccent: {
-    fontSize: fontSize['2xl'],
-    fontWeight: fontWeight.bold,
     color: '#fff',
   },
   statLabel: {
@@ -224,36 +237,50 @@ const styles = StyleSheet.create({
     marginTop: spacing[1],
   },
   statLabelAccent: {
-    fontSize: fontSize.xs,
     color: forest[200],
-    marginTop: spacing[1],
+  },
+  statHint: {
+    fontSize: fontSize.xs,
+    color: theme.fgFaint,
+    marginTop: 2,
+  },
+  statHintAccent: {
+    color: forest[300],
   },
   sectionLabel: {
-    fontSize: fontSize.sm,
+    fontSize: fontSize.xs,
     fontWeight: fontWeight.semi,
     color: theme.fgSubtle,
     letterSpacing: 1.8,
     textTransform: 'uppercase',
     marginBottom: spacing[3],
   },
-  sectionLabelSpaced: {
-    marginTop: spacing[6],
+  upcomingLabel: {
+    marginTop: spacing[8],
   },
-  loader: { marginTop: spacing[4] },
+  empty: {
+    fontSize: fontSize.base,
+    color: theme.fgMuted,
+    marginTop: spacing[2],
+  },
   emptyState: {
-    marginTop: spacing[16],
     alignItems: 'center',
+    marginTop: spacing[10],
+    paddingHorizontal: spacing[4],
   },
-  emptyIcon: { marginBottom: spacing[4] },
+  emptyIcon: {
+    marginBottom: spacing[4],
+  },
   emptyTitle: {
     fontSize: fontSize.lg,
     fontWeight: fontWeight.semi,
     color: theme.fg,
-    marginBottom: spacing[1],
+    textAlign: 'center',
   },
   emptySub: {
-    fontSize: fontSize.base,
+    fontSize: fontSize.sm,
     color: theme.fgMuted,
+    marginTop: spacing[1],
     textAlign: 'center',
   },
   lessonRow: {
@@ -267,17 +294,21 @@ const styles = StyleSheet.create({
     borderColor: theme.border,
     gap: spacing[4],
   },
+  lessonRowFaded: { opacity: 0.65 },
   lessonRowPressed: { backgroundColor: theme.bgSunken },
+  lessonTimeCol: { width: 70, gap: 1 },
+  lessonDate: {
+    fontSize: 10,
+    color: theme.fgFaint,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    fontWeight: fontWeight.semi,
+  },
   lessonTime: {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.medium,
     color: theme.fgMuted,
-    width: 70,
-    paddingTop: 2,
     fontVariant: ['tabular-nums'],
-  },
-  lessonTimeMuted: {
-    color: theme.fgFaint,
   },
   lessonInfo: { flex: 1 },
   lessonPlayer: {
@@ -304,12 +335,13 @@ const styles = StyleSheet.create({
   },
   durationBadge: {
     backgroundColor: court[100],
-    borderRadius: radius.pill,
+    borderRadius: 999,
     paddingHorizontal: 6,
     paddingVertical: 2,
   },
   durationBadgeText: {
-    fontSize: fontSize.xs,
+    fontSize: 11,
+    fontWeight: fontWeight.semi,
     color: court[700],
   },
 })

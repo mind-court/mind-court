@@ -1,19 +1,12 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useId } from 'react'
 import { supabase } from './supabase'
 import { useAuth } from './auth'
-
-export type Conversation = {
-  id: string
-  coach_id: string
-  player_id: string | null
-  player_name: string
-  last_message: string | null
-  last_message_at: string | null
-  created_at: string
-}
+import { useRefreshOnForeground } from './useRefreshOnForeground'
+import type { Conversation } from '../types/db'
 
 export function useConversations() {
   const { user } = useAuth()
+  const instanceId = useId()
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -30,6 +23,20 @@ export function useConversations() {
   }, [user])
 
   useEffect(() => { fetch() }, [fetch])
+  useRefreshOnForeground(fetch)
+
+  useEffect(() => {
+    if (!user) return
+    const channel = supabase
+      .channel(`conversations-${instanceId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'conversations', filter: `coach_id=eq.${user.id}` },
+        () => fetch(),
+      )
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [user, fetch])
 
   async function startConversation(playerName: string, playerId?: string) {
     if (!user) return { data: null, error: 'Not signed in' }
@@ -46,8 +53,23 @@ export function useConversations() {
       .select()
       .single()
 
-    if (!error && data) setConversations(prev => [data, ...prev])
-    return { data: data ?? null, error: error?.message ?? null }
+    if (!error && data) {
+      setConversations(prev => [data, ...prev])
+      return { data, error: null }
+    }
+
+    // Unique constraint violation — row already exists, fetch it
+    if (playerId) {
+      const { data: existing } = await supabase
+        .from('conversations')
+        .select('*')
+        .eq('coach_id', user.id)
+        .eq('player_id', playerId)
+        .single()
+      if (existing) return { data: existing, error: null }
+    }
+
+    return { data: null, error: error?.message ?? null }
   }
 
   return { conversations, loading, startConversation, refresh: fetch }

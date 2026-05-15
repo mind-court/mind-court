@@ -1,33 +1,15 @@
 import { useState } from 'react'
 import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native'
+import { router } from 'expo-router'
 import { Feather } from '@expo/vector-icons'
-import { theme, spacing, fontSize, fontWeight, radius, forest, court, sage } from '@mind-court/ui'
+import { theme, spacing, fontSize, fontWeight, radius, forest, court } from '@mind-court/ui'
 import { Screen } from '../../components/Screen'
 import { usePlayers } from '../../lib/usePlayers'
 import { useLessons } from '../../lib/useLessons'
 import { CreatePlayerSheet } from '../../components/CreatePlayerSheet'
+import { avatarColor } from '../../lib/avatarColor'
+import { formatRelativeDate } from '../../lib/dateUtils'
 import type { Player, Lesson } from '../../types/db'
-
-const AVATAR_COLORS = [
-  forest[500], forest[600], '#6B8CAE', '#7A8E70', '#A0845C', '#7A6B8A', sage[700],
-]
-
-function avatarColor(name: string): string {
-  let hash = 0
-  for (const c of name) hash = (hash * 31 + c.charCodeAt(0)) & 0xffff
-  return AVATAR_COLORS[hash % AVATAR_COLORS.length]
-}
-
-function formatRelativeDate(date: Date): string {
-  const now = new Date()
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-  const target = new Date(date.getFullYear(), date.getMonth(), date.getDate())
-  const diffDays = Math.round((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-  if (diffDays === 0) return 'Today'
-  if (diffDays === -1) return 'Yesterday'
-  if (diffDays > -7 && diffDays < 0) return date.toLocaleDateString('en-US', { weekday: 'long' })
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-}
 
 export default function Players() {
   const { players, loading, createPlayer } = usePlayers()
@@ -51,33 +33,24 @@ export default function Players() {
         </View>
 
         {loading ? (
-          <ActivityIndicator color={theme.primary} style={styles.loader} />
+          <ActivityIndicator color={theme.primary} style={{ marginTop: spacing[8] }} />
         ) : players.length === 0 ? (
-          <View style={styles.empty}>
+          <View style={styles.emptyState}>
             <Feather name="users" size={40} color={forest[300]} style={styles.emptyIcon} />
             <Text style={styles.emptyTitle}>No players yet</Text>
-            <Text style={styles.emptySub}>
-              Add your first player and start tracking their progress.
-            </Text>
+            <Text style={styles.emptySub}>Add your first player to start tracking their progress.</Text>
           </View>
         ) : (
           <>
-            {regularPlayers.length > 0 && (
-              <>
-                <Text style={styles.sectionLabel}>
-                  {players.length} player{players.length !== 1 ? 's' : ''}
-                </Text>
-                {regularPlayers.map(player => (
-                  <PlayerCard key={player.id} player={player} lessons={lessons} />
-                ))}
-              </>
-            )}
-
+            <Text style={styles.sectionLabel}>
+              {regularPlayers.length} player{regularPlayers.length !== 1 ? 's' : ''}
+            </Text>
+            {regularPlayers.map(player => (
+              <PlayerCard key={player.id} player={player} lessons={lessons} />
+            ))}
             {kidPlayers.length > 0 && (
               <>
-                <Text style={regularPlayers.length > 0 ? [styles.sectionLabel, styles.sectionLabelSpaced] : styles.sectionLabel}>
-                  Kid Mode
-                </Text>
+                <Text style={[styles.sectionLabel, styles.kidSectionLabel]}>Kid Mode</Text>
                 {kidPlayers.map(player => (
                   <PlayerCard key={player.id} player={player} lessons={lessons} />
                 ))}
@@ -112,21 +85,17 @@ function PlayerCard({ player, lessons }: { player: Player; lessons: Lesson[] }) 
     (a, b) => new Date(b.scheduled_at).getTime() - new Date(a.scheduled_at).getTime()
   )[0]
   const lastDate = lastLesson ? formatRelativeDate(new Date(lastLesson.scheduled_at)) : null
-
   const memberSince = new Date(player.created_at).toLocaleDateString('en-US', {
     month: 'long',
     year: 'numeric',
   })
 
-  const metaText = lessonCount > 0
-    ? `${lessonCount} lesson${lessonCount !== 1 ? 's' : ''}${lastDate ? ` · ${lastDate}` : ''}`
-    : `Member since ${memberSince}`
-
-  const color = avatarColor(player.full_name)
-
   return (
-    <Pressable style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}>
-      <View style={[styles.avatar, { backgroundColor: color }]}>
+    <Pressable
+      style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+      onPress={() => router.push(`/coach/player/${player.id}`)}
+    >
+      <View style={[styles.avatar, { backgroundColor: avatarColor(player.full_name) }]}>
         <Text style={styles.avatarText}>{initials}</Text>
       </View>
       <View style={styles.info}>
@@ -138,15 +107,19 @@ function PlayerCard({ player, lessons }: { player: Player; lessons: Lesson[] }) 
             </View>
           )}
         </View>
-        <Text style={styles.meta}>{metaText}</Text>
+        <Text style={styles.metaText} numberOfLines={1}>
+          {lastDate
+            ? `${lessonCount} lesson${lessonCount !== 1 ? 's' : ''} · ${lastDate}`
+            : `Member since ${memberSince}`}
+        </Text>
       </View>
-      <View style={styles.right}>
+      <View style={styles.cardRight}>
         {lessonCount > 0 && (
-          <View style={styles.countBadge}>
-            <Text style={styles.countBadgeText}>{lessonCount}</Text>
+          <View style={styles.lessonCountBadge}>
+            <Text style={styles.lessonCountText}>{lessonCount}</Text>
           </View>
         )}
-        <Feather name="chevron-right" size={16} color={theme.fgSubtle} />
+        <Text style={styles.chevron}>›</Text>
       </View>
     </Pressable>
   )
@@ -178,33 +151,35 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   sectionLabel: {
-    fontSize: fontSize.sm,
+    fontSize: fontSize.xs,
     fontWeight: fontWeight.semi,
     color: theme.fgSubtle,
     letterSpacing: 1.8,
     textTransform: 'uppercase',
     marginBottom: spacing[3],
   },
-  sectionLabelSpaced: {
+  kidSectionLabel: {
     marginTop: spacing[6],
   },
-  loader: { marginTop: spacing[8] },
-  empty: {
+  emptyState: {
     marginTop: spacing[16],
     alignItems: 'center',
-    gap: spacing[2],
+    paddingHorizontal: spacing[4],
   },
-  emptyIcon: { marginBottom: spacing[2] },
+  emptyIcon: {
+    marginBottom: spacing[4],
+  },
   emptyTitle: {
     fontSize: fontSize.lg,
     fontWeight: fontWeight.semi,
     color: theme.fg,
+    textAlign: 'center',
   },
   emptySub: {
-    fontSize: fontSize.base,
+    fontSize: fontSize.sm,
     color: theme.fgMuted,
+    marginTop: spacing[1],
     textAlign: 'center',
-    paddingHorizontal: spacing[4],
   },
   card: {
     flexDirection: 'row',
@@ -231,7 +206,7 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.bold,
     color: '#fff',
   },
-  info: { flex: 1, gap: 4 },
+  info: { flex: 1, gap: 3 },
   nameRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -243,12 +218,13 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.semi,
     color: theme.fg,
   },
-  meta: {
+  metaText: {
     fontSize: fontSize.sm,
     color: theme.fgSubtle,
   },
   kidBadge: {
-    backgroundColor: court[100],
+    alignSelf: 'flex-start',
+    backgroundColor: theme.accentHover,
     borderRadius: radius.pill,
     paddingHorizontal: spacing[2],
     paddingVertical: 2,
@@ -256,22 +232,28 @@ const styles = StyleSheet.create({
   kidBadgeText: {
     fontSize: fontSize.xs,
     fontWeight: fontWeight.semi,
-    color: court[700],
+    color: theme.fgOnAccent,
   },
-  right: {
+  cardRight: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing[2],
   },
-  countBadge: {
+  lessonCountBadge: {
     backgroundColor: court[100],
-    borderRadius: radius.pill,
+    borderRadius: 999,
     paddingHorizontal: 6,
     paddingVertical: 2,
+    marginRight: spacing[2],
   },
-  countBadgeText: {
-    fontSize: fontSize.xs,
+  lessonCountText: {
+    fontSize: 11,
     fontWeight: fontWeight.bold,
     color: court[700],
+  },
+  chevron: {
+    fontSize: 22,
+    color: theme.fgSubtle,
+    lineHeight: 24,
   },
 })

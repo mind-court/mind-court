@@ -4,23 +4,21 @@ import {
   Text,
   TextInput,
   ScrollView,
+  FlatList,
   Pressable,
   StyleSheet,
   Platform,
+  ActivityIndicator,
 } from 'react-native'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import { BottomSheet } from './BottomSheet'
-import { theme, spacing, fontSize, fontWeight, radius, forest, sage } from '@mind-court/ui'
-
-const AVATAR_COLORS = [forest[500], forest[600], '#6B8CAE', '#7A8E70', '#A0845C', '#7A6B8A', sage[700]]
-export function avatarColor(name: string) {
-  let hash = 0
-  for (const c of name) hash = (hash * 31 + c.charCodeAt(0)) & 0xffff
-  return AVATAR_COLORS[hash % AVATAR_COLORS.length]
-}
+import { theme, spacing, fontSize, fontWeight, radius } from '@mind-court/ui'
+import { avatarColor } from '../lib/avatarColor'
+import type { Player } from '../types/db'
 
 export type LessonInput = {
   playerName: string
+  playerId?: string
   date: Date
   court: string
   duration: string
@@ -31,11 +29,14 @@ export type LessonInput = {
 type Props = {
   visible: boolean
   onClose: () => void
-  onSave: (input: LessonInput) => void
+  onSave: (input: LessonInput) => Promise<{ error: string | null } | undefined>
+  players: Player[]
 }
 
-export function CreateLessonSheet({ visible, onClose, onSave }: Props) {
-  const [playerName, setPlayerName] = useState('')
+export function CreateLessonSheet({ visible, onClose, onSave, players }: Props) {
+  const [step, setStep] = useState<'form' | 'picker'>('form')
+  const [query, setQuery] = useState('')
+  const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null)
   const [date, setDate] = useState(new Date())
   const [court, setCourt] = useState('')
   const [duration, setDuration] = useState('')
@@ -43,28 +44,56 @@ export function CreateLessonSheet({ visible, onClose, onSave }: Props) {
   const [mentalCue, setMentalCue] = useState('')
   const [showDatePicker, setShowDatePicker] = useState(false)
   const [showTimePicker, setShowTimePicker] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState('')
 
-  function handleSave() {
-    if (!playerName.trim()) return
-    onSave({
-      playerName: playerName.trim(),
+  const filtered = query.trim()
+    ? players.filter(p => p.full_name.toLowerCase().includes(query.toLowerCase()))
+    : players
+
+  function handleSelectPlayer(player: Player) {
+    setSelectedPlayer(player)
+    setQuery('')
+    setStep('form')
+  }
+
+  async function handleSave() {
+    if (!selectedPlayer || saving) return
+    setSaving(true)
+    setSaveError('')
+    const result = await onSave({
+      playerName: selectedPlayer.full_name,
+      playerId: selectedPlayer.id,
       date,
       court: court.trim(),
       duration: duration.trim(),
       drills: drills.trim(),
       mentalCue: mentalCue.trim(),
     })
+    setSaving(false)
+    if (result?.error) {
+      setSaveError(result.error)
+    } else {
+      reset()
+      onClose()
+    }
+  }
+
+  function handleClose() {
     reset()
     onClose()
   }
 
   function reset() {
-    setPlayerName('')
+    setStep('form')
+    setQuery('')
+    setSelectedPlayer(null)
     setDate(new Date())
     setCourt('')
     setDuration('')
     setDrills('')
     setMentalCue('')
+    setSaveError('')
   }
 
   const formattedDate = date.toLocaleDateString('en-US', {
@@ -75,138 +104,251 @@ export function CreateLessonSheet({ visible, onClose, onSave }: Props) {
   })
 
   return (
-    <BottomSheet visible={visible} onClose={onClose}>
-      <View style={styles.header}>
-        <Text style={styles.title}>New lesson</Text>
-        <Pressable onPress={onClose} style={styles.closeBtn} hitSlop={12}>
-          <Text style={styles.closeText}>✕</Text>
-        </Pressable>
-      </View>
-
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.form}
-        keyboardShouldPersistTaps="handled"
-      >
-        <Field label="Player">
-          <TextInput
-            style={styles.input}
-            placeholder="Name"
-            placeholderTextColor={theme.fgFaint}
-            value={playerName}
-            onChangeText={setPlayerName}
-            autoCapitalize="words"
-            returnKeyType="next"
-          />
-        </Field>
-
-        <View style={styles.row}>
-          <View style={styles.rowField}>
-            <Field label="Date">
-              <Pressable style={styles.input} onPress={() => setShowDatePicker(true)}>
-                <Text style={styles.inputText}>{formattedDate}</Text>
-              </Pressable>
-            </Field>
+    <BottomSheet visible={visible} onClose={handleClose}>
+      {step === 'picker' ? (
+        <>
+          <View style={styles.header}>
+            <Pressable onPress={() => { setQuery(''); setStep('form') }} hitSlop={12} style={styles.backBtn}>
+              <Text style={styles.backText}>‹</Text>
+            </Pressable>
+            <Text style={styles.title}>Select player</Text>
+            <View style={{ width: 32 }} />
           </View>
-          <View style={styles.rowField}>
-            <Field label="Time">
-              <Pressable style={styles.input} onPress={() => setShowTimePicker(true)}>
-                <Text style={styles.inputText}>{formattedTime}</Text>
-              </Pressable>
-            </Field>
-          </View>
-        </View>
 
-        {showDatePicker && (
-          <DateTimePicker
-            value={date}
-            mode="date"
-            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-            onChange={(_, selected) => {
-              setShowDatePicker(Platform.OS === 'android')
-              if (selected) {
-                const updated = new Date(date)
-                updated.setFullYear(selected.getFullYear(), selected.getMonth(), selected.getDate())
-                setDate(updated)
-              }
-            }}
-          />
-        )}
-
-        {showTimePicker && (
-          <DateTimePicker
-            value={date}
-            mode="time"
-            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-            onChange={(_, selected) => {
-              setShowTimePicker(Platform.OS === 'android')
-              if (selected) {
-                const updated = new Date(date)
-                updated.setHours(selected.getHours(), selected.getMinutes())
-                setDate(updated)
-              }
-            }}
-          />
-        )}
-
-        <Field label="Court">
-          <TextInput
-            style={styles.input}
-            placeholder="e.g. Court 1"
-            placeholderTextColor={theme.fgFaint}
-            value={court}
-            onChangeText={setCourt}
-            returnKeyType="next"
-          />
-        </Field>
-
-        <Field label="Duration">
-          <View style={styles.durationRow}>
+          <View style={styles.searchBox}>
             <TextInput
-              style={styles.durationInput}
-              placeholder="e.g. 60"
+              style={styles.searchInput}
+              placeholder="Search players…"
               placeholderTextColor={theme.fgFaint}
-              value={duration}
-              onChangeText={setDuration}
-              keyboardType="numeric"
-              returnKeyType="next"
+              value={query}
+              onChangeText={setQuery}
+              autoCapitalize="words"
+              autoFocus
+              returnKeyType="search"
             />
-            <Text style={styles.durationSuffix}>min</Text>
           </View>
-        </Field>
 
-        <Field label="Drills & plan">
-          <TextInput
-            style={[styles.input, styles.textarea]}
-            placeholder={"One drill per line:\nCross-court forehands — 20 reps\nServe placement — first ball %\nMatch play — first to 7"}
-            placeholderTextColor={theme.fgFaint}
-            value={drills}
-            onChangeText={setDrills}
-            multiline
-            numberOfLines={3}
-            textAlignVertical="top"
-          />
-        </Field>
+          {players.length === 0 ? (
+            <View style={styles.empty}>
+              <Text style={styles.emptyTitle}>No players yet</Text>
+              <Text style={styles.emptySub}>Add players from the Players tab first.</Text>
+            </View>
+          ) : filtered.length === 0 ? (
+            <View style={styles.empty}>
+              <Text style={styles.emptyTitle}>No match</Text>
+              <Text style={styles.emptySub}>No player named "{query}".</Text>
+            </View>
+          ) : (
+            <FlatList
+              data={filtered}
+              keyExtractor={p => p.id}
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={styles.pickerList}
+              renderItem={({ item }) => {
+                const initials = item.full_name
+                  .split(' ').map((n: string) => n[0]).slice(0, 2).join('').toUpperCase()
+                return (
+                  <Pressable
+                    style={({ pressed }) => [styles.pickerRow, pressed && styles.pickerRowPressed]}
+                    onPress={() => handleSelectPlayer(item)}
+                  >
+                    <View style={[styles.pickerAvatar, { backgroundColor: avatarColor(item.full_name) }]}>
+                      <Text style={styles.pickerAvatarText}>{initials}</Text>
+                    </View>
+                    <View style={styles.pickerRowInfo}>
+                      <Text style={styles.pickerName}>{item.full_name}</Text>
+                      {item.is_kid_mode && (
+                        <Text style={styles.kidBadge}>Kid Mode</Text>
+                      )}
+                    </View>
+                  </Pressable>
+                )
+              }}
+            />
+          )}
+        </>
+      ) : (
+        <>
+          <View style={styles.header}>
+            <Text style={styles.title}>New lesson</Text>
+            <Pressable onPress={handleClose} style={styles.closeBtn} hitSlop={12}>
+              <Text style={styles.closeText}>✕</Text>
+            </Pressable>
+          </View>
 
-        <Field label="Mental cue">
-          <TextInput
-            style={styles.input}
-            placeholder="e.g. Reset between points"
-            placeholderTextColor={theme.fgFaint}
-            value={mentalCue}
-            onChangeText={setMentalCue}
-            returnKeyType="done"
-          />
-        </Field>
+          <ScrollView
+            style={styles.scroll}
+            contentContainerStyle={styles.form}
+            keyboardShouldPersistTaps="handled"
+          >
+            <Field label="Player">
+              <Pressable
+                style={[styles.input, styles.playerBtn]}
+                onPress={() => setStep('picker')}
+              >
+                {selectedPlayer ? (
+                  <View style={styles.playerSelected}>
+                    <View style={[styles.playerAvatar, { backgroundColor: avatarColor(selectedPlayer.full_name) }]}>
+                      <Text style={styles.playerAvatarText}>
+                        {selectedPlayer.full_name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()}
+                      </Text>
+                    </View>
+                    <Text style={styles.playerName}>{selectedPlayer.full_name}</Text>
+                  </View>
+                ) : (
+                  <Text style={styles.playerPlaceholder}>Select player…</Text>
+                )}
+              </Pressable>
+            </Field>
 
-        <Pressable
-          style={({ pressed }) => [styles.saveBtn, pressed && styles.saveBtnPressed, !playerName.trim() && styles.saveBtnDisabled]}
-          onPress={handleSave}
-          disabled={!playerName.trim()}
-        >
-          <Text style={styles.saveBtnText}>Add lesson</Text>
-        </Pressable>
-      </ScrollView>
+            <View style={styles.row}>
+              <View style={styles.rowField}>
+                <Field label="Date">
+                  {Platform.OS === 'ios' ? (
+                    <View style={[styles.input, styles.pickerCompact]}>
+                      <DateTimePicker
+                        value={date}
+                        mode="date"
+                        display="compact"
+                        onChange={(_, selected) => {
+                          if (selected) {
+                            const updated = new Date(date)
+                            updated.setFullYear(selected.getFullYear(), selected.getMonth(), selected.getDate())
+                            setDate(updated)
+                          }
+                        }}
+                      />
+                    </View>
+                  ) : (
+                    <Pressable style={styles.input} onPress={() => setShowDatePicker(true)}>
+                      <Text style={styles.inputText}>{formattedDate}</Text>
+                    </Pressable>
+                  )}
+                </Field>
+              </View>
+              <View style={styles.rowField}>
+                <Field label="Time">
+                  {Platform.OS === 'ios' ? (
+                    <View style={[styles.input, styles.pickerCompact]}>
+                      <DateTimePicker
+                        value={date}
+                        mode="time"
+                        display="compact"
+                        onChange={(_, selected) => {
+                          if (selected) {
+                            const updated = new Date(date)
+                            updated.setHours(selected.getHours(), selected.getMinutes())
+                            setDate(updated)
+                          }
+                        }}
+                      />
+                    </View>
+                  ) : (
+                    <Pressable style={styles.input} onPress={() => setShowTimePicker(true)}>
+                      <Text style={styles.inputText}>{formattedTime}</Text>
+                    </Pressable>
+                  )}
+                </Field>
+              </View>
+            </View>
+
+            {showDatePicker && Platform.OS === 'android' && (
+              <DateTimePicker
+                value={date}
+                mode="date"
+                display="default"
+                onChange={(_, selected) => {
+                  setShowDatePicker(false)
+                  if (selected) {
+                    const updated = new Date(date)
+                    updated.setFullYear(selected.getFullYear(), selected.getMonth(), selected.getDate())
+                    setDate(updated)
+                  }
+                }}
+              />
+            )}
+
+            {showTimePicker && Platform.OS === 'android' && (
+              <DateTimePicker
+                value={date}
+                mode="time"
+                display="default"
+                onChange={(_, selected) => {
+                  setShowTimePicker(false)
+                  if (selected) {
+                    const updated = new Date(date)
+                    updated.setHours(selected.getHours(), selected.getMinutes())
+                    setDate(updated)
+                  }
+                }}
+              />
+            )}
+
+            <Field label="Court">
+              <TextInput
+                style={styles.input}
+                placeholder="e.g. Court 1"
+                placeholderTextColor={theme.fgFaint}
+                value={court}
+                onChangeText={setCourt}
+                returnKeyType="next"
+              />
+            </Field>
+
+            <Field label="Duration">
+              <View style={styles.durationRow}>
+                <TextInput
+                  style={styles.durationInput}
+                  placeholder="60"
+                  placeholderTextColor={theme.fgFaint}
+                  value={duration}
+                  onChangeText={setDuration}
+                  keyboardType="number-pad"
+                  returnKeyType="next"
+                />
+                <Text style={styles.durationUnit}>min</Text>
+              </View>
+            </Field>
+
+            <Field label="Drills & plan">
+              <TextInput
+                style={[styles.input, styles.textarea]}
+                placeholder={"One drill per line:\nCross-court forehands — 20 reps\nServe placement — first ball %\nMatch play — first to 7"}
+                placeholderTextColor={theme.fgFaint}
+                value={drills}
+                onChangeText={setDrills}
+                multiline
+                numberOfLines={3}
+                textAlignVertical="top"
+              />
+            </Field>
+
+            <Field label="Mental cue">
+              <TextInput
+                style={styles.input}
+                placeholder="e.g. Reset between points"
+                placeholderTextColor={theme.fgFaint}
+                value={mentalCue}
+                onChangeText={setMentalCue}
+                returnKeyType="done"
+              />
+            </Field>
+
+            {saveError ? <Text style={styles.errorText}>{saveError}</Text> : null}
+
+            <Pressable
+              style={({ pressed }) => [styles.saveBtn, pressed && styles.saveBtnPressed, (!selectedPlayer || saving) && styles.saveBtnDisabled]}
+              onPress={handleSave}
+              disabled={!selectedPlayer || saving}
+            >
+              {saving
+                ? <ActivityIndicator color="#fff" />
+                : <Text style={styles.saveBtnText}>Add lesson</Text>
+              }
+            </Pressable>
+          </ScrollView>
+        </>
+      )}
     </BottomSheet>
   )
 }
@@ -235,22 +377,17 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.bold,
     color: theme.fg,
   },
-  closeBtn: {
-    padding: spacing[1],
-  },
-  closeText: {
-    fontSize: fontSize.base,
-    color: theme.fgMuted,
-  },
+  backBtn: { width: 32 },
+  backText: { fontSize: 28, color: theme.primary, lineHeight: 32 },
+  closeBtn: { padding: spacing[1] },
+  closeText: { fontSize: fontSize.base, color: theme.fgMuted },
   scroll: { flex: 1 },
   form: {
     padding: spacing[4],
     gap: spacing[4],
     paddingBottom: spacing[8],
   },
-  field: {
-    gap: spacing[2],
-  },
+  field: { gap: spacing[2] },
   label: {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.semi,
@@ -268,14 +405,24 @@ const styles = StyleSheet.create({
     fontSize: fontSize.base,
     color: theme.fg,
   },
-  inputText: {
-    fontSize: fontSize.base,
-    color: theme.fg,
+  inputText: { fontSize: fontSize.base, color: theme.fg },
+  pickerCompact: { alignItems: 'flex-start', justifyContent: 'center' },
+  textarea: { minHeight: 80, paddingTop: spacing[3] },
+  row: { flexDirection: 'row', gap: spacing[3] },
+  rowField: { flex: 1 },
+  saveBtn: {
+    backgroundColor: theme.primary,
+    borderRadius: radius.md,
+    paddingVertical: spacing[4],
+    alignItems: 'center',
+    marginTop: spacing[2],
   },
-  textarea: {
-    minHeight: 80,
-    paddingTop: spacing[3],
-  },
+  saveBtnPressed: { backgroundColor: theme.primaryPress },
+  saveBtnDisabled: { opacity: 0.4 },
+  saveBtnText: { fontSize: fontSize.base, fontWeight: fontWeight.semi, color: '#fff' },
+  errorText: { fontSize: fontSize.sm, color: theme.danger },
+
+  // Duration field
   durationRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -292,34 +439,65 @@ const styles = StyleSheet.create({
     fontSize: fontSize.base,
     color: theme.fg,
   },
-  durationSuffix: {
+  durationUnit: {
+    paddingRight: spacing[3],
     fontSize: fontSize.sm,
     color: theme.fgSubtle,
-    paddingRight: spacing[3],
   },
-  row: {
-    flexDirection: 'row',
-    gap: spacing[3],
-  },
-  rowField: {
-    flex: 1,
-  },
-  saveBtn: {
+
+  // Player field (form step)
+  playerBtn: { justifyContent: 'center' },
+  playerPlaceholder: { fontSize: fontSize.base, color: theme.fgFaint },
+  playerSelected: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
+  playerAvatar: {
+    width: 28, height: 28, borderRadius: 14,
     backgroundColor: theme.primary,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  playerAvatarText: { fontSize: fontSize.xs, fontWeight: fontWeight.bold, color: '#fff' },
+  playerName: { fontSize: fontSize.base, fontWeight: fontWeight.medium, color: theme.fg },
+
+  // Picker step
+  searchBox: {
+    padding: spacing[4],
+    borderBottomWidth: 1,
+    borderBottomColor: theme.borderSubtle,
+  },
+  searchInput: {
+    backgroundColor: theme.bg,
+    borderWidth: 1,
+    borderColor: theme.border,
     borderRadius: radius.md,
-    paddingVertical: spacing[4],
-    alignItems: 'center',
-    marginTop: spacing[2],
-  },
-  saveBtnPressed: {
-    backgroundColor: theme.primaryPress,
-  },
-  saveBtnDisabled: {
-    opacity: 0.4,
-  },
-  saveBtnText: {
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[3],
     fontSize: fontSize.base,
-    fontWeight: fontWeight.semi,
-    color: '#fff',
+    color: theme.fg,
   },
+  pickerList: {
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[2],
+    paddingBottom: spacing[8],
+  },
+  pickerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing[3],
+    gap: spacing[3],
+    borderBottomWidth: 1,
+    borderBottomColor: theme.borderSubtle,
+  },
+  pickerRowPressed: { opacity: 0.6 },
+  pickerAvatar: {
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: theme.primary,
+    justifyContent: 'center', alignItems: 'center',
+    flexShrink: 0,
+  },
+  pickerAvatarText: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: '#fff' },
+  pickerRowInfo: { flex: 1, gap: 2 },
+  pickerName: { fontSize: fontSize.base, fontWeight: fontWeight.medium, color: theme.fg },
+  kidBadge: { fontSize: fontSize.xs, color: theme.accentPress, fontWeight: fontWeight.medium },
+  empty: { padding: spacing[8], alignItems: 'center', gap: spacing[2] },
+  emptyTitle: { fontSize: fontSize.base, fontWeight: fontWeight.semi, color: theme.fg },
+  emptySub: { fontSize: fontSize.sm, color: theme.fgMuted, textAlign: 'center' },
 })

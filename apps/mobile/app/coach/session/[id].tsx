@@ -1,21 +1,16 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import {
   View, Text, StyleSheet, ScrollView, Pressable,
-  TextInput, ActivityIndicator, KeyboardAvoidingView, Platform,
+  TextInput, ActivityIndicator, KeyboardAvoidingView, Platform, Alert,
 } from 'react-native'
 import { useLocalSearchParams, router } from 'expo-router'
-import { Feather } from '@expo/vector-icons'
 import { supabase } from '../../../lib/supabase'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { theme, spacing, fontSize, fontWeight, radius, court, forest, sage } from '@mind-court/ui'
+import { useDrillCompletions } from '../../../lib/useDrillCompletions'
+import { EditLessonSheet } from '../../../components/EditLessonSheet'
+import { theme, spacing, fontSize, fontWeight, radius, court, forest } from '@mind-court/ui'
 import type { Lesson } from '../../../types/db'
-
-const AVATAR_COLORS = [forest[500], forest[600], '#6B8CAE', '#7A8E70', '#A0845C', '#7A6B8A', sage[700]]
-function avatarColor(name: string) {
-  let hash = 0
-  for (const c of name) hash = (hash * 31 + c.charCodeAt(0)) & 0xffff
-  return AVATAR_COLORS[hash % AVATAR_COLORS.length]
-}
+import type { LessonEdits } from '../../../components/EditLessonSheet'
 
 export default function Session() {
   const { id } = useLocalSearchParams<{ id: string }>()
@@ -23,9 +18,10 @@ export default function Session() {
   const [lesson, setLesson] = useState<Lesson | null>(null)
   const [loading, setLoading] = useState(true)
   const [drills, setDrills] = useState<string[]>([])
-  const [completed, setCompleted] = useState<Set<number>>(new Set())
+  const { completed, toggleDrill } = useDrillCompletions(id)
   const [notes, setNotes] = useState('')
   const [showNotes, setShowNotes] = useState(false)
+  const [showEdit, setShowEdit] = useState(false)
   const [running, setRunning] = useState(false)
   const [elapsed, setElapsed] = useState(0)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -66,12 +62,57 @@ export default function Session() {
     await supabase.from('lessons').update({ notes: value }).eq('id', lesson.id)
   }, [lesson])
 
-  function toggleDrill(index: number) {
-    setCompleted(prev => {
-      const next = new Set(prev)
-      next.has(index) ? next.delete(index) : next.add(index)
-      return next
-    })
+  async function handleFinish() {
+    if (!lesson || elapsed === 0) return
+    const minutes = Math.max(1, Math.round(elapsed / 60))
+    await supabase.from('lessons').update({ duration_minutes: minutes }).eq('id', lesson.id)
+    router.back()
+  }
+
+  async function handleEditSave(edits: LessonEdits) {
+    if (!lesson) return
+    const updates = {
+      court: edits.court || null,
+      scheduled_at: edits.scheduledAt.toISOString(),
+      duration_minutes: edits.durationMinutes,
+      drills: edits.drills || null,
+      mental_cue: edits.mentalCue || null,
+    }
+    const { error } = await supabase.from('lessons').update(updates).eq('id', lesson.id)
+    const result = { error: error?.message ?? null }
+    if (!result.error && lesson) {
+      setLesson(prev => prev ? {
+        ...prev,
+        court: edits.court || null,
+        scheduled_at: edits.scheduledAt.toISOString(),
+        duration_minutes: edits.durationMinutes,
+        drills: edits.drills || null,
+        mental_cue: edits.mentalCue || null,
+      } : prev)
+      setDrills(
+        (edits.drills || '').split('\n').map(d => d.trim()).filter(Boolean)
+      )
+    }
+    return result
+  }
+
+  function handleDelete() {
+    Alert.alert(
+      'Delete lesson',
+      `Remove this lesson with ${lesson?.player_name}? This can't be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            if (!lesson) return
+            await supabase.from('lessons').delete().eq('id', lesson.id)
+            router.back()
+          },
+        },
+      ],
+    )
   }
 
   const mm = String(Math.floor(elapsed / 60)).padStart(2, '0')
@@ -109,13 +150,18 @@ export default function Session() {
 
         {/* ── Hero ── */}
         <View style={[styles.hero, { paddingTop: insets.top + spacing[4] }]}>
-          <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={12}>
-            <Text style={styles.backText}>‹ Today</Text>
-          </Pressable>
+          <View style={styles.heroTop}>
+            <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={12}>
+              <Text style={styles.backText}>‹ Back</Text>
+            </Pressable>
+            <Pressable onPress={() => setShowEdit(true)} hitSlop={12}>
+              <Text style={styles.editText}>Edit</Text>
+            </Pressable>
+          </View>
 
           <View style={styles.heroMeta}>
             <View style={styles.heroLeft}>
-              <View style={[styles.avatar, { backgroundColor: avatarColor(lesson.player_name) }]}>
+              <View style={styles.avatar}>
                 <Text style={styles.avatarText}>{initials}</Text>
               </View>
               <View>
@@ -195,12 +241,39 @@ export default function Session() {
 
         {drills.length === 0 && !lesson.mental_cue && (
           <View style={styles.emptySession}>
-            <Feather name="clipboard" size={36} color={forest[300]} style={styles.emptyIcon} />
-            <Text style={styles.emptyText}>No drills or mental cue planned for this lesson.</Text>
+            <Text style={styles.emptyText}>Nothing planned yet — free to run it your way.</Text>
           </View>
         )}
 
+        <View style={styles.footer}>
+          {elapsed > 0 && (
+            <Pressable
+              style={({ pressed }) => [styles.finishBtn, pressed && styles.finishBtnPressed]}
+              onPress={handleFinish}
+            >
+              <Text style={styles.finishBtnText}>
+                Finish session · {Math.max(1, Math.round(elapsed / 60))} min
+              </Text>
+            </Pressable>
+          )}
+          <Pressable
+            style={({ pressed }) => [styles.deleteBtn, pressed && styles.deleteBtnPressed]}
+            onPress={handleDelete}
+          >
+            <Text style={styles.deleteBtnText}>Delete lesson</Text>
+          </Pressable>
+        </View>
+
       </ScrollView>
+
+      {lesson && (
+        <EditLessonSheet
+          visible={showEdit}
+          onClose={() => setShowEdit(false)}
+          onSave={handleEditSave}
+          lesson={lesson}
+        />
+      )}
     </KeyboardAvoidingView>
   )
 }
@@ -239,8 +312,15 @@ const styles = StyleSheet.create({
     paddingTop: spacing[4],
     paddingBottom: spacing[5],
   },
-  backBtn: { marginBottom: spacing[4] },
+  heroTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing[4],
+  },
+  backBtn: {},
   backText: { color: '#fff', fontSize: fontSize.base, opacity: 0.8 },
+  editText: { color: 'rgba(255,255,255,0.7)', fontSize: fontSize.sm, fontWeight: fontWeight.medium },
   heroMeta: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -250,6 +330,7 @@ const styles = StyleSheet.create({
   heroLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
   avatar: {
     width: 48, height: 48, borderRadius: 24,
+    backgroundColor: forest[500],
     justifyContent: 'center', alignItems: 'center',
   },
   avatarText: { fontSize: fontSize.base, fontWeight: fontWeight.bold, color: '#fff' },
@@ -388,10 +469,40 @@ const styles = StyleSheet.create({
     padding: spacing[8],
     alignItems: 'center',
   },
-  emptyIcon: { marginBottom: spacing[3] },
   emptyText: {
     fontSize: fontSize.base,
     color: theme.fgMuted,
     textAlign: 'center',
+  },
+
+  footer: {
+    padding: spacing[5],
+    paddingTop: spacing[8],
+    alignItems: 'center',
+    gap: spacing[4],
+  },
+  finishBtn: {
+    backgroundColor: court[500],
+    borderRadius: radius.md,
+    paddingVertical: spacing[4],
+    paddingHorizontal: spacing[8],
+    alignItems: 'center',
+    alignSelf: 'stretch',
+  },
+  finishBtnPressed: { backgroundColor: court[400] },
+  finishBtnText: {
+    fontSize: fontSize.base,
+    fontWeight: fontWeight.semi,
+    color: forest[900],
+  },
+  deleteBtn: {
+    paddingVertical: spacing[2],
+    paddingHorizontal: spacing[4],
+  },
+  deleteBtnPressed: { opacity: 0.5 },
+  deleteBtnText: {
+    fontSize: fontSize.sm,
+    color: theme.fgFaint,
+    fontWeight: fontWeight.medium,
   },
 })

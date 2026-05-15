@@ -1,9 +1,8 @@
-import { View, Text, Pressable, StyleSheet } from 'react-native'
+import { ScrollView, View, Text, Pressable, StyleSheet, Alert } from 'react-native'
 import { router } from 'expo-router'
 import { useAuth } from '../../lib/auth'
 import { useLessons } from '../../lib/useLessons'
 import { usePlayers } from '../../lib/usePlayers'
-import { Screen } from '../../components/Screen'
 import { theme, spacing, fontSize, fontWeight, radius, forest } from '@mind-court/ui'
 
 export default function Profile() {
@@ -11,90 +10,99 @@ export default function Profile() {
   const { lessons } = useLessons()
   const { players } = usePlayers()
 
-  async function handleSignOut() {
-    await signOut()
-    router.replace('/sign-in')
-  }
-
-  const initials = profile?.full_name
-    ?.split(' ')
-    .map(n => n[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase() ?? '?'
-
   const now = new Date()
-  const thisMonthCount = lessons.filter(l => {
+  const thisMonthLessons = lessons.filter(l => {
     const d = new Date(l.scheduled_at)
     return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()
-  }).length
+  })
+
+  const initials = profile?.full_name
+    ?.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() ?? '?'
+
+  function handleSignOut() {
+    Alert.alert('Sign out', 'Sign out of Mind Court?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Sign out',
+        style: 'destructive',
+        onPress: async () => {
+          await signOut()
+          router.replace('/sign-in')
+        },
+      },
+    ])
+  }
 
   return (
-    <Screen>
+    <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
       {/* Profile hero */}
       <View style={styles.hero}>
-        <View style={styles.heroAvatar}>
-          <Text style={styles.heroAvatarText}>{initials}</Text>
+        <View style={styles.avatarCircle}>
+          <Text style={styles.avatarText}>{initials}</Text>
         </View>
-        <Text style={styles.heroName}>{profile?.full_name ?? '—'}</Text>
+        <Text style={styles.name}>{profile?.full_name ?? '—'}</Text>
         <View style={styles.roleBadge}>
           <Text style={styles.roleBadgeText}>Coach</Text>
         </View>
-        <Text style={styles.heroEmail}>{user?.email ?? '—'}</Text>
+        <Text style={styles.email}>{user?.email ?? ''}</Text>
       </View>
 
       {/* Stats row */}
       <View style={styles.statsRow}>
-        <StatTile value={players.length} label="Players" />
-        <StatTile value={lessons.length} label="All lessons" />
-        <StatTile value={thisMonthCount} label="This month" />
+        <View style={styles.statTile}>
+          <Text style={styles.statValue}>{String(players.length)}</Text>
+          <Text style={styles.statLabel}>Players</Text>
+        </View>
+        <View style={styles.statDivider} />
+        <View style={styles.statTile}>
+          <Text style={styles.statValue}>{String(lessons.length)}</Text>
+          <Text style={styles.statLabel}>Scheduled</Text>
+        </View>
+        <View style={styles.statDivider} />
+        <View style={styles.statTile}>
+          <Text style={styles.statValue}>{String(thisMonthLessons.length)}</Text>
+          <Text style={styles.statLabel}>This month</Text>
+        </View>
       </View>
 
-      {/* Settings section */}
-      <View style={styles.settingsCard}>
-        <View style={styles.settingsRow}>
-          <Text style={styles.settingsLabel}>Full name</Text>
-          <Text style={styles.settingsValue} numberOfLines={1}>
-            {profile?.full_name ?? '—'}
-          </Text>
+      {/* Info card */}
+      <View style={styles.infoCard}>
+        <View style={[styles.infoRow, styles.infoRowBorder]}>
+          <Text style={styles.infoLabel}>Full name</Text>
+          <Text style={styles.infoValue} numberOfLines={1}>{profile?.full_name ?? '—'}</Text>
         </View>
-        <View style={[styles.settingsRow, styles.settingsRowLast]}>
-          <Text style={styles.settingsLabel}>Email</Text>
-          <Text style={styles.settingsValue} numberOfLines={1}>
-            {user?.email ?? '—'}
-          </Text>
+        <View style={styles.infoRow}>
+          <Text style={styles.infoLabel}>Email</Text>
+          <Text style={styles.infoValue} numberOfLines={1}>{user?.email ?? '—'}</Text>
         </View>
       </View>
 
       {/* Sign out */}
-      <Pressable
-        style={({ pressed }) => [styles.signOut, pressed && styles.signOutPressed]}
-        onPress={handleSignOut}
-      >
-        <Text style={styles.signOutText}>Sign out</Text>
-      </Pressable>
-    </Screen>
-  )
-}
-
-function StatTile({ value, label }: { value: number; label: string }) {
-  return (
-    <View style={styles.statTile}>
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
-    </View>
+      <View style={styles.signOutContainer}>
+        <Pressable
+          style={({ pressed }) => [pressed && styles.signOutPressed]}
+          onPress={handleSignOut}
+        >
+          <Text style={styles.signOutText}>Sign out</Text>
+        </Pressable>
+      </View>
+    </ScrollView>
   )
 }
 
 const styles = StyleSheet.create({
+  scroll: { flex: 1, backgroundColor: theme.bg },
+  content: { paddingBottom: spacing[12] },
+
+  // Hero
   hero: {
     alignItems: 'center',
     paddingVertical: spacing[8],
+    paddingHorizontal: spacing[4],
     borderBottomWidth: 1,
     borderBottomColor: theme.borderSubtle,
-    marginBottom: spacing[5],
   },
-  heroAvatar: {
+  avatarCircle: {
     width: 64,
     height: 64,
     borderRadius: 32,
@@ -102,23 +110,24 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  heroAvatarText: {
+  avatarText: {
     fontSize: fontSize.lg,
     fontWeight: fontWeight.bold,
     color: '#fff',
   },
-  heroName: {
+  name: {
     fontSize: fontSize['2xl'],
     fontWeight: fontWeight.bold,
     color: theme.fg,
     letterSpacing: -0.3,
     marginTop: spacing[3],
+    textAlign: 'center',
   },
   roleBadge: {
     backgroundColor: forest[50],
     borderWidth: 1,
     borderColor: forest[100],
-    borderRadius: radius.pill,
+    borderRadius: 999,
     paddingHorizontal: spacing[3],
     paddingVertical: 4,
     marginTop: spacing[2],
@@ -128,17 +137,18 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.semi,
     color: forest[700],
   },
-  heroEmail: {
+  email: {
     fontSize: fontSize.sm,
     color: theme.fgSubtle,
     marginTop: spacing[1],
   },
+
+  // Stats
   statsRow: {
     flexDirection: 'row',
     paddingVertical: spacing[5],
     borderBottomWidth: 1,
     borderBottomColor: theme.borderSubtle,
-    marginBottom: spacing[2],
   },
   statTile: {
     flex: 1,
@@ -156,39 +166,54 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 1.5,
   },
-  settingsCard: {
+  statDivider: {
+    width: 1,
+    height: 40,
+    backgroundColor: theme.borderSubtle,
+    alignSelf: 'center',
+  },
+
+  // Info card
+  infoCard: {
+    marginHorizontal: spacing[4],
+    marginTop: spacing[4],
     backgroundColor: theme.bgElevated,
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: theme.border,
   },
-  settingsRow: {
+  infoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: spacing[4],
+  },
+  infoRowBorder: {
     borderBottomWidth: 1,
     borderBottomColor: theme.borderSubtle,
   },
-  settingsRowLast: { borderBottomWidth: 0 },
-  settingsLabel: {
-    fontSize: fontSize.base,
+  infoLabel: {
+    fontSize: fontSize.sm,
     color: theme.fgMuted,
   },
-  settingsValue: {
-    fontSize: fontSize.base,
+  infoValue: {
+    fontSize: fontSize.sm,
     fontWeight: fontWeight.medium,
     color: theme.fg,
-    flexShrink: 1,
     textAlign: 'right',
+    flex: 1,
     marginLeft: spacing[4],
   },
-  signOut: {
+
+  // Sign out
+  signOutContainer: {
     marginTop: spacing[6],
+    marginBottom: spacing[8],
     alignItems: 'center',
-    paddingVertical: spacing[4],
   },
-  signOutPressed: { opacity: 0.6 },
+  signOutPressed: {
+    opacity: 0.5,
+  },
   signOutText: {
     fontSize: fontSize.base,
     fontWeight: fontWeight.medium,

@@ -1,10 +1,12 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useId } from 'react'
 import { supabase } from './supabase'
 import { useAuth } from './auth'
+import { useRefreshOnForeground } from './useRefreshOnForeground'
 import type { Lesson } from '../types/db'
 
 export function useLessons() {
   const { user } = useAuth()
+  const instanceId = useId()
   const [lessons, setLessons] = useState<Lesson[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -21,12 +23,13 @@ export function useLessons() {
   }, [user])
 
   useEffect(() => { fetch() }, [fetch])
+  useRefreshOnForeground(fetch)
 
   // Keep list in sync across devices/tabs
   useEffect(() => {
     if (!user) return
     const channel = supabase
-      .channel('lessons-changes')
+      .channel(`lessons-${instanceId}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'lessons', filter: `coach_id=eq.${user.id}` },
@@ -44,7 +47,7 @@ export function useLessons() {
     durationMinutes?: number | null
     drills: string
     mentalCue: string
-  }) {
+  }): Promise<{ error: string | null } | undefined> {
     if (!user) return
     const { data, error } = await supabase
       .from('lessons')
@@ -67,7 +70,7 @@ export function useLessons() {
 
   async function updateLesson(
     id: string,
-    updates: Partial<Pick<Lesson, 'notes' | 'drills' | 'mental_cue' | 'duration_minutes'>>,
+    updates: Partial<Pick<Lesson, 'notes' | 'drills' | 'mental_cue' | 'duration_minutes' | 'court' | 'scheduled_at'>>,
   ) {
     const { error } = await supabase.from('lessons').update(updates).eq('id', id)
     if (!error) setLessons(prev => prev.map(l => l.id === id ? { ...l, ...updates } : l))

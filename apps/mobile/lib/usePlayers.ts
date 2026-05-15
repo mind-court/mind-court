@@ -1,10 +1,12 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useId } from 'react'
 import { supabase } from './supabase'
 import { useAuth } from './auth'
+import { useRefreshOnForeground } from './useRefreshOnForeground'
 import type { Player } from '../types/db'
 
 export function usePlayers() {
   const { user } = useAuth()
+  const instanceId = useId()
   const [players, setPlayers] = useState<Player[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -21,6 +23,20 @@ export function usePlayers() {
   }, [user])
 
   useEffect(() => { fetch() }, [fetch])
+  useRefreshOnForeground(fetch)
+
+  useEffect(() => {
+    if (!user) return
+    const channel = supabase
+      .channel(`players-${instanceId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'players', filter: `coach_id=eq.${user.id}` },
+        () => fetch(),
+      )
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [user, fetch])
 
   async function createPlayer(input: { fullName: string; isKidMode: boolean }) {
     if (!user) return { error: 'Not signed in' }

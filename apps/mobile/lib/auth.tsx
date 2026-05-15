@@ -9,7 +9,7 @@ type AuthContext = {
   profile: Profile | null
   loading: boolean
   signIn: (email: string, password: string) => Promise<{ error: string | null }>
-  signUp: (email: string, password: string, fullName: string) => Promise<{ error: string | null }>
+  signUp: (email: string, password: string, fullName: string) => Promise<{ error: string | null; needsVerification?: boolean }>
   signOut: () => Promise<void>
 }
 
@@ -52,12 +52,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function signUp(email: string, password: string, fullName: string) {
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: { data: { full_name: fullName, role: 'coach' } },
     })
-    return { error: error?.message ?? null }
+    // If email verification is required, data.session is null
+    const needsVerification = !error && !data.session
+    return {
+      error: error?.message ?? null,
+      needsVerification,
+    }
   }
 
   async function signOut() {

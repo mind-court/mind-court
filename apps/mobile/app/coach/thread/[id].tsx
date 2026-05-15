@@ -9,20 +9,10 @@ import { supabase } from '../../../lib/supabase'
 import { useMessages } from '../../../lib/useMessages'
 import { useAuth } from '../../../lib/auth'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { theme, spacing, fontSize, fontWeight, radius, forest, sage } from '@mind-court/ui'
-import type { Conversation } from '../../../lib/useConversations'
-import type { Message } from '../../../lib/useMessages'
-
-const AVATAR_COLORS = [forest[500], forest[600], '#6B8CAE', '#7A8E70', '#A0845C', '#7A6B8A', sage[700]]
-function avatarColor(name: string) {
-  let hash = 0
-  for (const c of name) hash = (hash * 31 + c.charCodeAt(0)) & 0xffff
-  return AVATAR_COLORS[hash % AVATAR_COLORS.length]
-}
-
-function initials(name: string): string {
-  return name.split(' ').map(w => w[0] ?? '').join('').slice(0, 2).toUpperCase()
-}
+import { theme, spacing, fontSize, fontWeight, radius, forest } from '@mind-court/ui'
+import { avatarColor } from '../../../lib/avatarColor'
+import { isSameDay } from '../../../lib/dateUtils'
+import type { Conversation, Message } from '../../../types/db'
 
 export default function Thread() {
   const { id } = useLocalSearchParams<{ id: string }>()
@@ -33,7 +23,6 @@ export default function Thread() {
   const [text, setText] = useState('')
   const [sending, setSending] = useState(false)
   const listRef = useRef<FlatList>(null)
-  const playerName = conversation?.player_name ?? ''
 
   useEffect(() => {
     supabase
@@ -72,12 +61,15 @@ export default function Thread() {
           <Text style={styles.backText}> Messages</Text>
         </Pressable>
         <View style={styles.headerCenter}>
-          {playerName ? (
-            <View style={[styles.headerAvatar, { backgroundColor: avatarColor(playerName) }]}>
-              <Text style={styles.headerAvatarText}>{initials(playerName)}</Text>
-            </View>
-          ) : null}
-          <Text style={styles.headerName}>{playerName || '…'}</Text>
+          <View style={[
+            styles.headerAvatar,
+            { backgroundColor: avatarColor(conversation?.player_name ?? '') },
+          ]}>
+            <Text style={styles.headerAvatarText}>
+              {(conversation?.player_name ?? '').split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()}
+            </Text>
+          </View>
+          <Text style={styles.headerName}>{conversation?.player_name ?? '…'}</Text>
         </View>
         <View style={styles.headerSpacer} />
       </View>
@@ -170,12 +162,6 @@ function MessageBubble({
   )
 }
 
-function isSameDay(a: Date, b: Date) {
-  return a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate()
-}
-
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.bg },
   header: {
@@ -193,12 +179,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing[1],
-    minWidth: spacing[24],
   },
   backText: {
     fontSize: fontSize.sm,
-    color: theme.primary,
     fontWeight: fontWeight.medium,
+    color: theme.primary,
   },
   headerCenter: {
     flex: 1,
@@ -215,16 +200,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerAvatarText: {
-    fontSize: fontSize.xs,
+    fontSize: 11,
     fontWeight: fontWeight.bold,
     color: '#fff',
   },
+  headerSpacer: { width: 80 },
   headerName: {
     fontSize: fontSize.base,
     fontWeight: fontWeight.semi,
     color: theme.fg,
   },
-  headerSpacer: { width: spacing[24] },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   messageList: {
     padding: spacing[4],
@@ -273,8 +258,6 @@ const styles = StyleSheet.create({
     marginHorizontal: spacing[1],
   },
   emptyThread: {
-    flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
     paddingTop: spacing[16],
   },
@@ -288,7 +271,6 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     color: theme.fgFaint,
     marginTop: spacing[1],
-    textAlign: 'center',
   },
   composer: {
     flexDirection: 'row',

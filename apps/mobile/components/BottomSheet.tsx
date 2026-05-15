@@ -21,22 +21,29 @@ type Props = {
 
 export function BottomSheet({ visible, onClose, children }: Props) {
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current
+  const canDismiss = useRef(false)
+  const guardTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
   useEffect(() => {
     if (visible) {
-      Animated.spring(translateY, {
+      canDismiss.current = false
+      clearTimeout(guardTimer.current)
+      guardTimer.current = setTimeout(() => { canDismiss.current = true }, 350)
+      Animated.timing(translateY, {
         toValue: 0,
+        duration: 280,
         useNativeDriver: true,
-        damping: 20,
-        stiffness: 200,
       }).start()
     } else {
+      canDismiss.current = false
+      clearTimeout(guardTimer.current)
       Animated.timing(translateY, {
         toValue: SCREEN_HEIGHT,
         duration: 200,
         useNativeDriver: true,
       }).start()
     }
+    return () => clearTimeout(guardTimer.current)
   }, [visible])
 
   return (
@@ -45,7 +52,10 @@ export function BottomSheet({ visible, onClose, children }: Props) {
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <Pressable style={styles.backdrop} onPress={onClose} />
+        <Pressable
+          style={styles.backdrop}
+          onPress={() => canDismiss.current && onClose()}
+        />
         <Animated.View style={[styles.sheet, { transform: [{ translateY }] }]}>
           <View style={styles.handle} />
           {children}
@@ -56,9 +66,12 @@ export function BottomSheet({ visible, onClose, children }: Props) {
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1 },
-  backdrop: {
+  flex: {
     flex: 1,
+    justifyContent: 'flex-end',
+  },
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(15, 31, 24, 0.4)',
   },
   sheet: {
@@ -66,7 +79,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: radius.xl,
     borderTopRightRadius: radius.xl,
     paddingBottom: 40,
-    maxHeight: SCREEN_HEIGHT * 0.92,
+    height: SCREEN_HEIGHT * 0.75,
   },
   handle: {
     width: 36,

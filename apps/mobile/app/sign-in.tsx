@@ -14,10 +14,12 @@ export default function SignIn() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
+  const [info, setInfo] = useState('')
   const [loading, setLoading] = useState(false)
 
   async function handleSubmit() {
     setError('')
+    setInfo('')
     setLoading(true)
     const result = mode === 'signin'
       ? await signIn(email, password)
@@ -25,6 +27,9 @@ export default function SignIn() {
     setLoading(false)
     if (result.error) {
       setError(result.error)
+    } else if ('needsVerification' in result && result.needsVerification) {
+      setInfo('Check your email to confirm your account, then sign in.')
+      setMode('signin')
     } else {
       router.replace('/coach')
     }
@@ -38,7 +43,7 @@ export default function SignIn() {
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text style={styles.logo}>Mind Court</Text>
         <Text style={styles.tagline}>
-          {mode === 'signin' ? 'Sign in to your account' : 'Create your coach account'}
+          {mode === 'signin' ? 'Welcome back, coach.' : 'Build your roster and plan every session.'}
         </Text>
 
         {mode === 'signup' && (
@@ -75,6 +80,7 @@ export default function SignIn() {
           onSubmitEditing={handleSubmit}
         />
 
+        {info ? <Text style={styles.info}>{info}</Text> : null}
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
         <Pressable
@@ -88,7 +94,7 @@ export default function SignIn() {
           }
         </Pressable>
 
-        <Pressable onPress={() => setMode(mode === 'signin' ? 'signup' : 'signin')} style={styles.toggle}>
+        <Pressable onPress={() => { setMode(mode === 'signin' ? 'signup' : 'signin'); setError(''); setInfo('') }} style={styles.toggle}>
           <Text style={styles.toggleText}>
             {mode === 'signin' ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
           </Text>
@@ -127,6 +133,10 @@ const styles = StyleSheet.create({
     paddingVertical: spacing[3],
     fontSize: fontSize.base,
     color: theme.fg,
+  },
+  info: {
+    fontSize: fontSize.sm,
+    color: theme.primary,
   },
   error: {
     fontSize: fontSize.sm,
