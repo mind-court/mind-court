@@ -7,8 +7,11 @@ import { useLocalSearchParams, router } from 'expo-router'
 import { supabase } from '../../../lib/supabase'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useDrillCompletions } from '../../../lib/useDrillCompletions'
+import { useLessons } from '../../../lib/useLessons'
+import { EditLessonSheet } from '../../../components/EditLessonSheet'
 import { theme, spacing, fontSize, fontWeight, radius, court, forest } from '@mind-court/ui'
 import type { Lesson } from '../../../types/db'
+import type { LessonEdits } from '../../../components/EditLessonSheet'
 
 export default function Session() {
   const { id } = useLocalSearchParams<{ id: string }>()
@@ -17,8 +20,10 @@ export default function Session() {
   const [loading, setLoading] = useState(true)
   const [drills, setDrills] = useState<string[]>([])
   const { completed, toggleDrill } = useDrillCompletions(id)
+  const { updateLesson } = useLessons()
   const [notes, setNotes] = useState('')
   const [showNotes, setShowNotes] = useState(false)
+  const [showEdit, setShowEdit] = useState(false)
   const [running, setRunning] = useState(false)
   const [elapsed, setElapsed] = useState(0)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -64,6 +69,31 @@ export default function Session() {
     const minutes = Math.max(1, Math.round(elapsed / 60))
     await supabase.from('lessons').update({ duration_minutes: minutes }).eq('id', lesson.id)
     router.back()
+  }
+
+  async function handleEditSave(edits: LessonEdits) {
+    if (!lesson) return
+    const result = await updateLesson(lesson.id, {
+      court: edits.court || null,
+      scheduled_at: edits.scheduledAt.toISOString(),
+      duration_minutes: edits.durationMinutes,
+      drills: edits.drills || null,
+      mental_cue: edits.mentalCue || null,
+    })
+    if (!result?.error && lesson) {
+      setLesson(prev => prev ? {
+        ...prev,
+        court: edits.court || null,
+        scheduled_at: edits.scheduledAt.toISOString(),
+        duration_minutes: edits.durationMinutes,
+        drills: edits.drills || null,
+        mental_cue: edits.mentalCue || null,
+      } : prev)
+      setDrills(
+        (edits.drills || '').split('\n').map(d => d.trim()).filter(Boolean)
+      )
+    }
+    return result
   }
 
   function handleDelete() {
@@ -120,9 +150,14 @@ export default function Session() {
 
         {/* ── Hero ── */}
         <View style={[styles.hero, { paddingTop: insets.top + spacing[4] }]}>
-          <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={12}>
-            <Text style={styles.backText}>‹ Today</Text>
-          </Pressable>
+          <View style={styles.heroTop}>
+            <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={12}>
+              <Text style={styles.backText}>‹ Today</Text>
+            </Pressable>
+            <Pressable onPress={() => setShowEdit(true)} hitSlop={12}>
+              <Text style={styles.editText}>Edit</Text>
+            </Pressable>
+          </View>
 
           <View style={styles.heroMeta}>
             <View style={styles.heroLeft}>
@@ -230,6 +265,15 @@ export default function Session() {
         </View>
 
       </ScrollView>
+
+      {lesson && (
+        <EditLessonSheet
+          visible={showEdit}
+          onClose={() => setShowEdit(false)}
+          onSave={handleEditSave}
+          lesson={lesson}
+        />
+      )}
     </KeyboardAvoidingView>
   )
 }
@@ -268,8 +312,15 @@ const styles = StyleSheet.create({
     paddingTop: spacing[4],
     paddingBottom: spacing[5],
   },
-  backBtn: { marginBottom: spacing[4] },
+  heroTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing[4],
+  },
+  backBtn: {},
   backText: { color: '#fff', fontSize: fontSize.base, opacity: 0.8 },
+  editText: { color: 'rgba(255,255,255,0.7)', fontSize: fontSize.sm, fontWeight: fontWeight.medium },
   heroMeta: {
     flexDirection: 'row',
     alignItems: 'center',
