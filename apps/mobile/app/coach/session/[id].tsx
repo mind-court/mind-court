@@ -6,6 +6,7 @@ import {
 import { useLocalSearchParams, router } from 'expo-router'
 import { supabase } from '../../../lib/supabase'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { useDrillCompletions } from '../../../lib/useDrillCompletions'
 import { theme, spacing, fontSize, fontWeight, radius, court, forest } from '@mind-court/ui'
 import type { Lesson } from '../../../types/db'
 
@@ -15,7 +16,7 @@ export default function Session() {
   const [lesson, setLesson] = useState<Lesson | null>(null)
   const [loading, setLoading] = useState(true)
   const [drills, setDrills] = useState<string[]>([])
-  const [completed, setCompleted] = useState<Set<number>>(new Set())
+  const { completed, toggleDrill } = useDrillCompletions(id)
   const [notes, setNotes] = useState('')
   const [showNotes, setShowNotes] = useState(false)
   const [running, setRunning] = useState(false)
@@ -57,14 +58,6 @@ export default function Session() {
     if (!lesson) return
     await supabase.from('lessons').update({ notes: value }).eq('id', lesson.id)
   }, [lesson])
-
-  function toggleDrill(index: number) {
-    setCompleted(prev => {
-      const next = new Set(prev)
-      next.has(index) ? next.delete(index) : next.add(index)
-      return next
-    })
-  }
 
   const mm = String(Math.floor(elapsed / 60)).padStart(2, '0')
   const ss = String(elapsed % 60).padStart(2, '0')

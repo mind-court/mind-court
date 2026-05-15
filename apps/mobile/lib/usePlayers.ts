@@ -22,6 +22,19 @@ export function usePlayers() {
 
   useEffect(() => { fetch() }, [fetch])
 
+  useEffect(() => {
+    if (!user) return
+    const channel = supabase
+      .channel('players-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'players', filter: `coach_id=eq.${user.id}` },
+        () => fetch(),
+      )
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [user, fetch])
+
   async function createPlayer(input: { fullName: string; isKidMode: boolean }) {
     if (!user) return { error: 'Not signed in' }
     const { data, error } = await supabase

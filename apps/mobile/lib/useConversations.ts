@@ -31,6 +31,19 @@ export function useConversations() {
 
   useEffect(() => { fetch() }, [fetch])
 
+  useEffect(() => {
+    if (!user) return
+    const channel = supabase
+      .channel('conversations-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'conversations', filter: `coach_id=eq.${user.id}` },
+        () => fetch(),
+      )
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [user, fetch])
+
   async function startConversation(playerName: string, playerId?: string) {
     if (!user) return { data: null, error: 'Not signed in' }
 
