@@ -1,14 +1,38 @@
 import { useState } from 'react'
 import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native'
-import { theme, spacing, fontSize, fontWeight, radius } from '@mind-court/ui'
+import { Feather } from '@expo/vector-icons'
+import { theme, spacing, fontSize, fontWeight, radius, forest, court, sage } from '@mind-court/ui'
 import { Screen } from '../../components/Screen'
 import { usePlayers } from '../../lib/usePlayers'
+import { useLessons } from '../../lib/useLessons'
 import { CreatePlayerSheet } from '../../components/CreatePlayerSheet'
-import type { Player } from '../../types/db'
+import type { Player, Lesson } from '../../types/db'
+
+const AVATAR_COLORS = [forest[500], forest[600], '#6B8CAE', '#7A8E70', '#A0845C', '#7A6B8A', sage[700]]
+
+function avatarColor(name: string): string {
+  let hash = 0
+  for (const c of name) hash = (hash * 31 + c.charCodeAt(0)) & 0xffff
+  return AVATAR_COLORS[hash % AVATAR_COLORS.length]
+}
+
+function formatRelativeDate(date: Date): string {
+  const now = new Date()
+  const diff = now.getTime() - date.getTime()
+  const days = Math.floor(diff / 86400000)
+  if (days === 0) return 'Today'
+  if (days === 1) return 'Yesterday'
+  if (days < 7) return date.toLocaleDateString('en-US', { weekday: 'long' })
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
 
 export default function Players() {
   const { players, loading, createPlayer } = usePlayers()
+  const { lessons } = useLessons()
   const [showCreate, setShowCreate] = useState(false)
+
+  const regularPlayers = players.filter(p => !p.is_kid_mode)
+  const kidPlayers = players.filter(p => p.is_kid_mode)
 
   return (
     <>
@@ -26,16 +50,27 @@ export default function Players() {
         {loading ? (
           <ActivityIndicator color={theme.primary} style={{ marginTop: spacing[8] }} />
         ) : players.length === 0 ? (
-          <View style={styles.empty}>
+          <View style={styles.emptyState}>
+            <Feather name="users" size={40} color={forest[300]} style={styles.emptyIcon} />
             <Text style={styles.emptyTitle}>No players yet</Text>
-            <Text style={styles.emptySub}>Add your first player to get started.</Text>
+            <Text style={styles.emptySub}>Add your first player to start tracking their progress.</Text>
           </View>
         ) : (
           <>
-            <Text style={styles.sectionLabel}>{players.length} player{players.length !== 1 ? 's' : ''}</Text>
-            {players.map(player => (
-              <PlayerCard key={player.id} player={player} />
+            <Text style={styles.sectionLabel}>
+              {regularPlayers.length} player{regularPlayers.length !== 1 ? 's' : ''}
+            </Text>
+            {regularPlayers.map(player => (
+              <PlayerCard key={player.id} player={player} lessons={lessons} />
             ))}
+            {kidPlayers.length > 0 && (
+              <>
+                <Text style={[styles.sectionLabel, styles.kidSectionLabel]}>Kid Mode</Text>
+                {kidPlayers.map(player => (
+                  <PlayerCard key={player.id} player={player} lessons={lessons} />
+                ))}
+              </>
+            )}
           </>
         )}
       </Screen>
@@ -49,7 +84,7 @@ export default function Players() {
   )
 }
 
-function PlayerCard({ player }: { player: Player }) {
+function PlayerCard({ player, lessons }: { player: Player; lessons: Lesson[] }) {
   const initials = player.full_name
     .split(' ')
     .map(n => n[0])
@@ -57,20 +92,47 @@ function PlayerCard({ player }: { player: Player }) {
     .join('')
     .toUpperCase()
 
+  const playerLessons = lessons.filter(
+    l => l.player_id === player.id || l.player_name === player.full_name
+  )
+  const lessonCount = playerLessons.length
+  const lastLesson = [...playerLessons].sort(
+    (a, b) => new Date(b.scheduled_at).getTime() - new Date(a.scheduled_at).getTime()
+  )[0]
+  const lastDate = lastLesson ? formatRelativeDate(new Date(lastLesson.scheduled_at)) : null
+  const memberSince = new Date(player.created_at).toLocaleDateString('en-US', {
+    month: 'long',
+    year: 'numeric',
+  })
+
   return (
     <Pressable style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}>
-      <View style={styles.avatar}>
+      <View style={[styles.avatar, { backgroundColor: avatarColor(player.full_name) }]}>
         <Text style={styles.avatarText}>{initials}</Text>
       </View>
       <View style={styles.info}>
-        <Text style={styles.name}>{player.full_name}</Text>
-        {player.is_kid_mode && (
-          <View style={styles.kidBadge}>
-            <Text style={styles.kidBadgeText}>Kid Mode</Text>
+        <View style={styles.nameRow}>
+          <Text style={styles.name}>{player.full_name}</Text>
+          {player.is_kid_mode && (
+            <View style={styles.kidBadge}>
+              <Text style={styles.kidBadgeText}>Kid Mode</Text>
+            </View>
+          )}
+        </View>
+        <Text style={styles.metaText} numberOfLines={1}>
+          {lastDate
+            ? `${lessonCount} lesson${lessonCount !== 1 ? 's' : ''} · ${lastDate}`
+            : `Member since ${memberSince}`}
+        </Text>
+      </View>
+      <View style={styles.cardRight}>
+        {lessonCount > 0 && (
+          <View style={styles.lessonCountBadge}>
+            <Text style={styles.lessonCountText}>{lessonCount}</Text>
           </View>
         )}
+        <Text style={styles.chevron}>›</Text>
       </View>
-      <Text style={styles.chevron}>›</Text>
     </Pressable>
   )
 }
@@ -101,26 +163,35 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   sectionLabel: {
-    fontSize: fontSize.sm,
+    fontSize: fontSize.xs,
     fontWeight: fontWeight.semi,
     color: theme.fgSubtle,
-    letterSpacing: 1.2,
+    letterSpacing: 1.8,
     textTransform: 'uppercase',
     marginBottom: spacing[3],
   },
-  empty: {
+  kidSectionLabel: {
+    marginTop: spacing[6],
+  },
+  emptyState: {
     marginTop: spacing[16],
     alignItems: 'center',
-    gap: spacing[2],
+    paddingHorizontal: spacing[4],
+  },
+  emptyIcon: {
+    marginBottom: spacing[4],
   },
   emptyTitle: {
     fontSize: fontSize.lg,
     fontWeight: fontWeight.semi,
     color: theme.fg,
+    textAlign: 'center',
   },
   emptySub: {
-    fontSize: fontSize.base,
+    fontSize: fontSize.sm,
     color: theme.fgMuted,
+    marginTop: spacing[1],
+    textAlign: 'center',
   },
   card: {
     flexDirection: 'row',
@@ -138,20 +209,30 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: theme.primary,
     justifyContent: 'center',
     alignItems: 'center',
+    flexShrink: 0,
   },
   avatarText: {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.bold,
     color: '#fff',
   },
-  info: { flex: 1, gap: 4 },
+  info: { flex: 1, gap: 3 },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+    flexWrap: 'wrap',
+  },
   name: {
     fontSize: fontSize.base,
     fontWeight: fontWeight.semi,
     color: theme.fg,
+  },
+  metaText: {
+    fontSize: fontSize.sm,
+    color: theme.fgSubtle,
   },
   kidBadge: {
     alignSelf: 'flex-start',
@@ -164,6 +245,23 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xs,
     fontWeight: fontWeight.semi,
     color: theme.fgOnAccent,
+  },
+  cardRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+  },
+  lessonCountBadge: {
+    backgroundColor: court[100],
+    borderRadius: 999,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    marginRight: spacing[2],
+  },
+  lessonCountText: {
+    fontSize: 11,
+    fontWeight: fontWeight.bold,
+    color: court[700],
   },
   chevron: {
     fontSize: 22,
