@@ -11,8 +11,7 @@ import { useConversations } from '../../lib/useConversations'
 import { usePlayers } from '../../lib/usePlayers'
 import { PlayerPickerSheet } from '../../components/PlayerPickerSheet'
 import { avatarColor } from '../../lib/avatarColor'
-import type { Conversation } from '../../lib/useConversations'
-import type { Player } from '../../types/db'
+import type { Conversation, Player } from '../../types/db'
 
 function isRecent(dateStr: string | null): boolean {
   if (!dateStr) return false

@@ -1,16 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { supabase } from './supabase'
 import { useAuth } from './auth'
-
-export type Conversation = {
-  id: string
-  coach_id: string
-  player_id: string | null
-  player_name: string
-  last_message: string | null
-  last_message_at: string | null
-  created_at: string
-}
+import type { Conversation } from '../types/db'
 
 export function useConversations() {
   const { user } = useAuth()

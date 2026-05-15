@@ -12,8 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { theme, spacing, fontSize, fontWeight, radius, forest } from '@mind-court/ui'
 import { avatarColor } from '../../../lib/avatarColor'
 import { isSameDay } from '../../../lib/dateUtils'
-import type { Conversation } from '../../../lib/useConversations'
-import type { Message } from '../../../lib/useMessages'
+import type { Conversation, Message } from '../../../types/db'
 
 export default function Thread() {
   const { id } = useLocalSearchParams<{ id: string }>()
