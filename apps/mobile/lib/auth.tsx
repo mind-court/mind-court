@@ -11,6 +11,10 @@ type AuthContext = {
   signIn: (email: string, password: string) => Promise<{ error: string | null }>
   signUp: (email: string, password: string, fullName: string) => Promise<{ error: string | null; needsVerification?: boolean }>
   signOut: () => Promise<void>
+  signOutEverywhere: () => Promise<{ error: string | null }>
+  updateProfile: (updates: Partial<Pick<Profile, 'full_name'>>) => Promise<{ error: string | null }>
+  changePassword: (newPassword: string) => Promise<{ error: string | null }>
+  refreshProfile: () => Promise<void>
 }
 
 const Ctx = createContext<AuthContext | null>(null)
@@ -69,8 +73,47 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await supabase.auth.signOut()
   }
 
+  async function signOutEverywhere() {
+    const { error } = await supabase.auth.signOut({ scope: 'global' })
+    return { error: error?.message ?? null }
+  }
+
+  async function changePassword(newPassword: string) {
+    const { error } = await supabase.auth.updateUser({ password: newPassword })
+    return { error: error?.message ?? null }
+  }
+
+  async function refreshProfile() {
+    if (!session) return
+    await fetchProfile(session.user.id)
+  }
+
+  async function updateProfile(updates: Partial<Pick<Profile, 'full_name'>>) {
+    if (!session) return { error: 'Not signed in' }
+    const { data, error } = await supabase
+      .from('profiles')
+      .update(updates)
+      .eq('id', session.user.id)
+      .select()
+      .single()
+    if (!error && data) setProfile(data)
+    return { error: error?.message ?? null }
+  }
+
   return (
-    <Ctx.Provider value={{ session, user: session?.user ?? null, profile, loading, signIn, signUp, signOut }}>
+    <Ctx.Provider value={{
+      session,
+      user: session?.user ?? null,
+      profile,
+      loading,
+      signIn,
+      signUp,
+      signOut,
+      signOutEverywhere,
+      updateProfile,
+      changePassword,
+      refreshProfile,
+    }}>
       {children}
     </Ctx.Provider>
   )
