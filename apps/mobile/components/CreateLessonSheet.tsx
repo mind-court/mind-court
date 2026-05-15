@@ -8,6 +8,7 @@ import {
   Pressable,
   StyleSheet,
   Platform,
+  ActivityIndicator,
 } from 'react-native'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import { BottomSheet } from './BottomSheet'
@@ -28,7 +29,7 @@ export type LessonInput = {
 type Props = {
   visible: boolean
   onClose: () => void
-  onSave: (input: LessonInput) => void
+  onSave: (input: LessonInput) => Promise<{ error: string | null } | undefined>
   players: Player[]
 }
 
@@ -43,6 +44,8 @@ export function CreateLessonSheet({ visible, onClose, onSave, players }: Props) 
   const [mentalCue, setMentalCue] = useState('')
   const [showDatePicker, setShowDatePicker] = useState(false)
   const [showTimePicker, setShowTimePicker] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState('')
 
   const filtered = query.trim()
     ? players.filter(p => p.full_name.toLowerCase().includes(query.toLowerCase()))
@@ -54,9 +57,11 @@ export function CreateLessonSheet({ visible, onClose, onSave, players }: Props) 
     setStep('form')
   }
 
-  function handleSave() {
-    if (!selectedPlayer) return
-    onSave({
+  async function handleSave() {
+    if (!selectedPlayer || saving) return
+    setSaving(true)
+    setSaveError('')
+    const result = await onSave({
       playerName: selectedPlayer.full_name,
       playerId: selectedPlayer.id,
       date,
@@ -65,8 +70,13 @@ export function CreateLessonSheet({ visible, onClose, onSave, players }: Props) 
       drills: drills.trim(),
       mentalCue: mentalCue.trim(),
     })
-    reset()
-    onClose()
+    setSaving(false)
+    if (result?.error) {
+      setSaveError(result.error)
+    } else {
+      reset()
+      onClose()
+    }
   }
 
   function handleClose() {
@@ -83,6 +93,7 @@ export function CreateLessonSheet({ visible, onClose, onSave, players }: Props) 
     setDuration('')
     setDrills('')
     setMentalCue('')
+    setSaveError('')
   }
 
   const formattedDate = date.toLocaleDateString('en-US', {
@@ -323,12 +334,17 @@ export function CreateLessonSheet({ visible, onClose, onSave, players }: Props) 
               />
             </Field>
 
+            {saveError ? <Text style={styles.errorText}>{saveError}</Text> : null}
+
             <Pressable
-              style={({ pressed }) => [styles.saveBtn, pressed && styles.saveBtnPressed, !selectedPlayer && styles.saveBtnDisabled]}
+              style={({ pressed }) => [styles.saveBtn, pressed && styles.saveBtnPressed, (!selectedPlayer || saving) && styles.saveBtnDisabled]}
               onPress={handleSave}
-              disabled={!selectedPlayer}
+              disabled={!selectedPlayer || saving}
             >
-              <Text style={styles.saveBtnText}>Add lesson</Text>
+              {saving
+                ? <ActivityIndicator color="#fff" />
+                : <Text style={styles.saveBtnText}>Add lesson</Text>
+              }
             </Pressable>
           </ScrollView>
         </>
@@ -404,6 +420,7 @@ const styles = StyleSheet.create({
   saveBtnPressed: { backgroundColor: theme.primaryPress },
   saveBtnDisabled: { opacity: 0.4 },
   saveBtnText: { fontSize: fontSize.base, fontWeight: fontWeight.semi, color: '#fff' },
+  errorText: { fontSize: fontSize.sm, color: theme.danger },
 
   // Duration field
   durationRow: {

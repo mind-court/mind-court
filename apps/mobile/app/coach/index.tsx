@@ -45,7 +45,7 @@ export default function CoachToday() {
     drills: string
     mentalCue: string
   }) {
-    await createLesson({
+    return createLesson({
       playerName: input.playerName,
       playerId: input.playerId,
       scheduledAt: input.date,
