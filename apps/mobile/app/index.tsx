@@ -1,19 +1,32 @@
-import { useEffect } from 'react'
 import { Redirect } from 'expo-router'
-import { View, ActivityIndicator } from 'react-native'
+import { View, ActivityIndicator, StyleSheet } from 'react-native'
 import { useAuth } from '../lib/auth'
-import { theme } from '@mind-court/ui'
+import { LogoMark, court, forest, spacing } from '@mind-court/ui'
 
 export default function Root() {
   const { session, loading } = useAuth()
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.bg }}>
-        <ActivityIndicator color={theme.primary} />
+      <View style={styles.screen}>
+        <LogoMark size={84} variant="dark" />
+        <ActivityIndicator color={court[500]} style={styles.spinner} />
       </View>
     )
   }
 
   return <Redirect href={session ? '/coach' : '/sign-in'} />
 }
+
+const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: forest[700],
+    gap: spacing[8],
+  },
+  spinner: {
+    marginTop: spacing[2],
+  },
+})

@@ -13,6 +13,9 @@
       "resizeMode": "contain",
       "backgroundColor": "#1B3A2D"
     },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.mindcourt.app"
