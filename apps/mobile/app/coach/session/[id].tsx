@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import {
   View, Text, StyleSheet, ScrollView, Pressable,
-  TextInput, ActivityIndicator, KeyboardAvoidingView, Platform,
+  TextInput, ActivityIndicator, KeyboardAvoidingView, Platform, Alert,
 } from 'react-native'
 import { useLocalSearchParams, router } from 'expo-router'
 import { supabase } from '../../../lib/supabase'
@@ -58,6 +58,25 @@ export default function Session() {
     if (!lesson) return
     await supabase.from('lessons').update({ notes: value }).eq('id', lesson.id)
   }, [lesson])
+
+  function handleDelete() {
+    Alert.alert(
+      'Delete lesson',
+      `Remove this lesson with ${lesson?.player_name}? This can't be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            if (!lesson) return
+            await supabase.from('lessons').delete().eq('id', lesson.id)
+            router.back()
+          },
+        },
+      ],
+    )
+  }
 
   const mm = String(Math.floor(elapsed / 60)).padStart(2, '0')
   const ss = String(elapsed % 60).padStart(2, '0')
@@ -183,6 +202,15 @@ export default function Session() {
             <Text style={styles.emptyText}>Nothing planned yet — free to run it your way.</Text>
           </View>
         )}
+
+        <View style={styles.footer}>
+          <Pressable
+            style={({ pressed }) => [styles.deleteBtn, pressed && styles.deleteBtnPressed]}
+            onPress={handleDelete}
+          >
+            <Text style={styles.deleteBtnText}>Delete lesson</Text>
+          </Pressable>
+        </View>
 
       </ScrollView>
     </KeyboardAvoidingView>
@@ -377,5 +405,21 @@ const styles = StyleSheet.create({
     fontSize: fontSize.base,
     color: theme.fgMuted,
     textAlign: 'center',
+  },
+
+  footer: {
+    padding: spacing[5],
+    paddingTop: spacing[8],
+    alignItems: 'center',
+  },
+  deleteBtn: {
+    paddingVertical: spacing[2],
+    paddingHorizontal: spacing[4],
+  },
+  deleteBtnPressed: { opacity: 0.5 },
+  deleteBtnText: {
+    fontSize: fontSize.sm,
+    color: theme.fgFaint,
+    fontWeight: fontWeight.medium,
   },
 })
