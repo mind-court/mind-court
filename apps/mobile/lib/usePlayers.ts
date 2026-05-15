@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { supabase } from './supabase'
 import { useAuth } from './auth'
+import { useRefreshOnForeground } from './useRefreshOnForeground'
 import type { Player } from '../types/db'
 
 export function usePlayers() {
@@ -21,6 +22,7 @@ export function usePlayers() {
   }, [user])
 
   useEffect(() => { fetch() }, [fetch])
+  useRefreshOnForeground(fetch)
 
   useEffect(() => {
     if (!user) return

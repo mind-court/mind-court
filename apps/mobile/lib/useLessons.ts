@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { supabase } from './supabase'
 import { useAuth } from './auth'
+import { useRefreshOnForeground } from './useRefreshOnForeground'
 import type { Lesson } from '../types/db'
 
 export function useLessons() {
@@ -21,6 +22,7 @@ export function useLessons() {
   }, [user])
 
   useEffect(() => { fetch() }, [fetch])
+  useRefreshOnForeground(fetch)
 
   // Keep list in sync across devices/tabs
   useEffect(() => {
