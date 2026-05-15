@@ -4,7 +4,7 @@
 
 If you've found a security issue in Mind Court — anything from a bug that could expose user data to a misconfiguration in this repository — please **do not** open a public issue.
 
-Instead, email **ben@preferably.com** with:
+Instead, email **bensmith0124@gmail.com** with:
 
 - A description of the issue
 - Steps to reproduce (if applicable)

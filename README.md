@@ -42,4 +42,4 @@ Pre-launch. The coach side is the current focus; the player side follows.
 
 ## Contact
 
-Questions, licensing, or partnership: **ben@preferably.com**
+Questions, licensing, or partnership: **bensmith0124@gmail.com**
