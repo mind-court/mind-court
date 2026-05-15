@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   View, Text, TextInput, Pressable, StyleSheet, Switch, ActivityIndicator,
 } from 'react-native'
@@ -18,6 +18,16 @@ export function EditPlayerSheet({ visible, onClose, player, onSave }: Props) {
   const [isKidMode, setIsKidMode] = useState(player.is_kid_mode)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const prevVisible = useRef(false)
+
+  useEffect(() => {
+    if (visible && !prevVisible.current) {
+      setFullName(player.full_name)
+      setIsKidMode(player.is_kid_mode)
+      setError('')
+    }
+    prevVisible.current = visible
+  }, [visible])
 
   async function handleSave() {
     if (!fullName.trim() || loading) return

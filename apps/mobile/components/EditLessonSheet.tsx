@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   View, Text, TextInput, ScrollView, Pressable,
   StyleSheet, Platform, ActivityIndicator,
@@ -33,6 +33,19 @@ export function EditLessonSheet({ visible, onClose, onSave, lesson }: Props) {
   const [showTimePicker, setShowTimePicker] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
+  const prevVisible = useRef(false)
+
+  useEffect(() => {
+    if (visible && !prevVisible.current) {
+      setCourt(lesson.court ?? '')
+      setDate(new Date(lesson.scheduled_at))
+      setDuration(lesson.duration_minutes != null ? String(lesson.duration_minutes) : '')
+      setDrills(lesson.drills ?? '')
+      setMentalCue(lesson.mental_cue ?? '')
+      setSaveError('')
+    }
+    prevVisible.current = visible
+  }, [visible])
 
   const formattedDate = date.toLocaleDateString('en-US', {
     weekday: 'short', month: 'short', day: 'numeric',

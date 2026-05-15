@@ -53,8 +53,23 @@ export function useConversations() {
       .select()
       .single()
 
-    if (!error && data) setConversations(prev => [data, ...prev])
-    return { data: data ?? null, error: error?.message ?? null }
+    if (!error && data) {
+      setConversations(prev => [data, ...prev])
+      return { data, error: null }
+    }
+
+    // Unique constraint violation — row already exists, fetch it
+    if (playerId) {
+      const { data: existing } = await supabase
+        .from('conversations')
+        .select('*')
+        .eq('coach_id', user.id)
+        .eq('player_id', playerId)
+        .single()
+      if (existing) return { data: existing, error: null }
+    }
+
+    return { data: null, error: error?.message ?? null }
   }
 
   return { conversations, loading, startConversation, refresh: fetch }

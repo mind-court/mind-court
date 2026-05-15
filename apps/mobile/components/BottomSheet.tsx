@@ -22,7 +22,7 @@ type Props = {
 export function BottomSheet({ visible, onClose, children }: Props) {
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current
   const canDismiss = useRef(false)
-  const guardTimer = useRef<ReturnType<typeof setTimeout>>()
+  const guardTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
   useEffect(() => {
     if (visible) {

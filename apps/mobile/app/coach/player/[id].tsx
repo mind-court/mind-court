@@ -58,8 +58,12 @@ export default function PlayerDetail() {
           text: 'Remove',
           style: 'destructive',
           onPress: async () => {
-            await deletePlayer(id)
-            router.back()
+            const { error } = await deletePlayer(id)
+            if (error) {
+              Alert.alert('Error', 'Could not remove player. Please try again.')
+            } else {
+              router.back()
+            }
           },
         },
       ],
