@@ -31,6 +31,14 @@ export default function CoachToday() {
     })
     .slice(0, 4)
 
+  const recentLessons = lessons
+    .filter(l => {
+      const d = new Date(l.scheduled_at)
+      return d < today && !isSameDay(d, today)
+    })
+    .sort((a, b) => new Date(b.scheduled_at).getTime() - new Date(a.scheduled_at).getTime())
+    .slice(0, 3)
+
   const upcomingCount = lessons.filter(l => {
     const d = new Date(l.scheduled_at)
     return d > today && !isSameDay(d, today)
@@ -99,6 +107,13 @@ export default function CoachToday() {
             {upcomingLessons.map(lesson => <LessonRow key={lesson.id} lesson={lesson} />)}
           </>
         )}
+
+        {recentLessons.length > 0 && (
+          <>
+            <Text style={[styles.sectionLabel, styles.upcomingLabel]}>Recent</Text>
+            {recentLessons.map(lesson => <LessonRow key={lesson.id} lesson={lesson} faded />)}
+          </>
+        )}
       </Screen>
 
       <CreateLessonSheet
@@ -121,16 +136,22 @@ function StatCard({ label, value, hint, accent }: { label: string; value: string
   )
 }
 
-function LessonRow({ lesson }: { lesson: Lesson }) {
+function LessonRow({ lesson, faded }: { lesson: Lesson; faded?: boolean }) {
   const time = new Date(lesson.scheduled_at).toLocaleTimeString('en-US', {
     hour: 'numeric', minute: '2-digit',
   })
+  const dateLabel = faded ? new Date(lesson.scheduled_at).toLocaleDateString('en-US', {
+    weekday: 'short', month: 'short', day: 'numeric',
+  }) : null
   return (
     <Pressable
-      style={({ pressed }) => [styles.lessonRow, pressed && styles.lessonRowPressed]}
+      style={({ pressed }) => [styles.lessonRow, faded && styles.lessonRowFaded, pressed && styles.lessonRowPressed]}
       onPress={() => router.push(`/coach/session/${lesson.id}`)}
     >
-      <Text style={styles.lessonTime}>{time}</Text>
+      <View style={styles.lessonTimeCol}>
+        {dateLabel ? <Text style={styles.lessonDate}>{dateLabel}</Text> : null}
+        <Text style={styles.lessonTime}>{time}</Text>
+      </View>
       <View style={styles.lessonInfo}>
         <Text style={styles.lessonPlayer}>{lesson.player_name}</Text>
         {lesson.court ? <Text style={styles.lessonCourt}>{lesson.court}</Text> : null}
@@ -273,13 +294,20 @@ const styles = StyleSheet.create({
     borderColor: theme.border,
     gap: spacing[4],
   },
+  lessonRowFaded: { opacity: 0.65 },
   lessonRowPressed: { backgroundColor: theme.bgSunken },
+  lessonTimeCol: { width: 70, gap: 1 },
+  lessonDate: {
+    fontSize: 10,
+    color: theme.fgFaint,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    fontWeight: fontWeight.semi,
+  },
   lessonTime: {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.medium,
     color: theme.fgMuted,
-    width: 70,
-    paddingTop: 2,
     fontVariant: ['tabular-nums'],
   },
   lessonInfo: { flex: 1 },

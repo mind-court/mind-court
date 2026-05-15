@@ -152,7 +152,7 @@ export default function Session() {
         <View style={[styles.hero, { paddingTop: insets.top + spacing[4] }]}>
           <View style={styles.heroTop}>
             <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={12}>
-              <Text style={styles.backText}>‹ Today</Text>
+              <Text style={styles.backText}>‹ Back</Text>
             </Pressable>
             <Pressable onPress={() => setShowEdit(true)} hitSlop={12}>
               <Text style={styles.editText}>Edit</Text>
