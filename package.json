@@ -6,6 +6,7 @@
   "scripts": {
     "mobile": "pnpm --filter @mind-court/mobile start",
     "mobile:ios": "pnpm --filter @mind-court/mobile ios",
-    "mobile:android": "pnpm --filter @mind-court/mobile android"
+    "mobile:android": "pnpm --filter @mind-court/mobile android",
+    "typecheck": "pnpm --filter @mind-court/mobile typecheck"
   }
 }
