@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import {
-  View, Text, TextInput, Pressable, StyleSheet, ActivityIndicator, ScrollView, Platform,
+  View, Text, TextInput, Pressable, StyleSheet, ActivityIndicator, ScrollView, Platform, Modal,
 } from 'react-native'
 import { router } from 'expo-router'
 import { Feather } from '@expo/vector-icons'
@@ -15,7 +15,7 @@ type Props = {
   onSave: (input: PlayerIntake) => Promise<{ data: Player | null; error: string | null } | undefined>
 }
 
-const STEP_COUNT = 4
+const STEP_COUNT = 2
 const CADENCE_OPTIONS = ['Weekly', 'Bi-weekly', 'Monthly', 'Drop-in']
 const SKILL_PRESETS = ['New to tennis', 'Recreational', 'Competitive']
 
@@ -54,11 +54,12 @@ export function CreatePlayerSheet({ visible, onClose, onSave }: Props) {
     onClose()
   }
 
-  // Step gating
-  const step1Ok = fullName.trim().length > 0 && isKidMode !== null
-  const step2Ok = isKidMode === false
+  // Step 1 needs: name, adult/kid choice, and (if kid) parent contact.
+  const nameOk = fullName.trim().length > 0
+  const kidContactOk = isKidMode !== true
     || (parentName.trim().length > 0 && parentPhone.trim().length > 0)
-  const canContinue = (step === 1 && step1Ok) || (step === 2 && step2Ok) || step === 3 || step === 4
+  const step1Ok = nameOk && isKidMode !== null && kidContactOk
+  const canContinue = (step === 1 && step1Ok) || step === 2
 
   function next() {
     if (!canContinue) return
@@ -97,377 +98,389 @@ export function CreatePlayerSheet({ visible, onClose, onSave }: Props) {
     if (newId) router.push(`/coach/player/${newId}?welcome=1`)
   }
 
-  function onDateChange(_e: DateTimePickerEvent, selected?: Date) {
-    if (Platform.OS === 'android') setShowDatePicker(false)
-    if (selected) setBirthdate(selected)
-  }
-
   return (
-    <BottomSheet visible={visible} onClose={handleClose}>
-      {/* Header */}
-      <View style={styles.header}>
-        <ProgressDots step={step} total={STEP_COUNT} />
-        <Pressable onPress={handleClose} hitSlop={12} style={styles.closeBtn}>
-          <Feather name="x" size={20} color={theme.fgMuted} />
-        </Pressable>
-      </View>
+    <>
+      <BottomSheet visible={visible} onClose={handleClose}>
+        {/* Header */}
+        <View style={styles.header}>
+          <ProgressDots step={step} total={STEP_COUNT} />
+          <Pressable onPress={handleClose} hitSlop={12} style={styles.closeBtn}>
+            <Feather name="x" size={20} color={theme.fgMuted} />
+          </Pressable>
+        </View>
 
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="on-drag"
-        showsVerticalScrollIndicator={false}
-      >
-        {step === 1 && (
-          <Step1
-            fullName={fullName} setFullName={setFullName}
-            isKidMode={isKidMode} setIsKidMode={setIsKidMode}
-            birthdate={birthdate}
-            showDatePicker={showDatePicker} setShowDatePicker={setShowDatePicker}
-            onDateChange={onDateChange}
-          />
-        )}
-        {step === 2 && (
-          <Step2
-            isKidMode={!!isKidMode}
-            firstName={firstNameOf(fullName)}
-            contactPhone={contactPhone} setContactPhone={setContactPhone}
-            contactEmail={contactEmail} setContactEmail={setContactEmail}
-            parentName={parentName} setParentName={setParentName}
-            parentPhone={parentPhone} setParentPhone={setParentPhone}
-          />
-        )}
-        {step === 3 && (
-          <Step3
-            firstName={firstNameOf(fullName)}
-            skillLevel={skillLevel} setSkillLevel={setSkillLevel}
-            lessonCadence={lessonCadence} setLessonCadence={setLessonCadence}
-            primaryFocus={primaryFocus} setPrimaryFocus={setPrimaryFocus}
-          />
-        )}
-        {step === 4 && (
-          <Step4
-            firstName={firstNameOf(fullName)}
-            intakeNotes={intakeNotes} setIntakeNotes={setIntakeNotes}
-          />
-        )}
-
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-      </ScrollView>
-
-      {/* Footer nav */}
-      <View style={styles.footer}>
-        <Pressable
-          onPress={back}
-          disabled={step === 1}
-          style={({ pressed }) => [
-            styles.backBtn,
-            pressed && styles.backBtnPressed,
-            step === 1 && styles.backBtnHidden,
-          ]}
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          showsVerticalScrollIndicator={false}
         >
-          <Feather name="arrow-left" size={18} color={theme.fg} />
-          <Text style={styles.backBtnText}>Back</Text>
-        </Pressable>
+          {step === 1 && (
+            <Step1
+              fullName={fullName} setFullName={setFullName}
+              isKidMode={isKidMode} setIsKidMode={setIsKidMode}
+              birthdate={birthdate}
+              onPickBirthday={() => setShowDatePicker(true)}
+              contactPhone={contactPhone} setContactPhone={setContactPhone}
+              contactEmail={contactEmail} setContactEmail={setContactEmail}
+              parentName={parentName} setParentName={setParentName}
+              parentPhone={parentPhone} setParentPhone={setParentPhone}
+            />
+          )}
+          {step === 2 && (
+            <Step2
+              firstName={firstNameOf(fullName)}
+              skillLevel={skillLevel} setSkillLevel={setSkillLevel}
+              lessonCadence={lessonCadence} setLessonCadence={setLessonCadence}
+              primaryFocus={primaryFocus} setPrimaryFocus={setPrimaryFocus}
+              intakeNotes={intakeNotes} setIntakeNotes={setIntakeNotes}
+            />
+          )}
 
-        {step < STEP_COUNT ? (
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+        </ScrollView>
+
+        {/* Footer nav */}
+        <View style={styles.footer}>
           <Pressable
-            onPress={next}
-            disabled={!canContinue}
+            onPress={back}
+            disabled={step === 1}
             style={({ pressed }) => [
-              styles.primaryBtn,
-              pressed && styles.primaryBtnPressed,
-              !canContinue && styles.primaryBtnDisabled,
+              styles.backBtn,
+              pressed && styles.backBtnPressed,
+              step === 1 && styles.backBtnHidden,
             ]}
           >
-            <Text style={styles.primaryBtnText}>Continue</Text>
-            <Feather name="arrow-right" size={18} color="#fff" />
+            <Feather name="arrow-left" size={18} color={theme.fg} />
+            <Text style={styles.backBtnText}>Back</Text>
           </Pressable>
-        ) : (
-          <Pressable
-            onPress={save}
-            disabled={loading}
-            style={({ pressed }) => [
-              styles.primaryBtn,
-              pressed && styles.primaryBtnPressed,
-              loading && styles.primaryBtnDisabled,
-            ]}
-          >
-            {loading
-              ? <ActivityIndicator color="#fff" />
-              : <Text style={styles.primaryBtnText}>Add player</Text>
-            }
-          </Pressable>
-        )}
-      </View>
-    </BottomSheet>
+
+          {step < STEP_COUNT ? (
+            <Pressable
+              onPress={next}
+              disabled={!canContinue}
+              style={({ pressed }) => [
+                styles.primaryBtn,
+                pressed && styles.primaryBtnPressed,
+                !canContinue && styles.primaryBtnDisabled,
+              ]}
+            >
+              <Text style={styles.primaryBtnText}>Continue</Text>
+              <Feather name="arrow-right" size={18} color="#fff" />
+            </Pressable>
+          ) : (
+            <Pressable
+              onPress={save}
+              disabled={loading}
+              style={({ pressed }) => [
+                styles.primaryBtn,
+                pressed && styles.primaryBtnPressed,
+                loading && styles.primaryBtnDisabled,
+              ]}
+            >
+              {loading
+                ? <ActivityIndicator color="#fff" />
+                : <Text style={styles.primaryBtnText}>Add player</Text>
+              }
+            </Pressable>
+          )}
+        </View>
+      </BottomSheet>
+
+      <BirthdayPicker
+        visible={showDatePicker}
+        value={birthdate}
+        onClose={() => setShowDatePicker(false)}
+        onChange={(d) => setBirthdate(d)}
+      />
+    </>
   )
 }
 
 // ─── Steps ────────────────────────────────────────────────────────────────────
 
 function Step1({
-  fullName, setFullName, isKidMode, setIsKidMode,
-  birthdate, showDatePicker, setShowDatePicker, onDateChange,
-}: {
-  fullName: string; setFullName: (v: string) => void
-  isKidMode: boolean | null; setIsKidMode: (v: boolean) => void
-  birthdate: Date | null
-  showDatePicker: boolean; setShowDatePicker: (v: boolean) => void
-  onDateChange: (e: DateTimePickerEvent, d?: Date) => void
-}) {
-  return (
-    <>
-      <Question title="What's their name?" />
-      <TextInput
-        style={styles.bigInput}
-        placeholder="Jamie Martinez"
-        placeholderTextColor={theme.fgFaint}
-        value={fullName}
-        onChangeText={setFullName}
-        autoCapitalize="words"
-        autoFocus
-        returnKeyType="next"
-      />
-
-      <View style={styles.spacer} />
-
-      <Question title="Are they an adult or a kid?" sub="Kids under 13 use a simpler version of the app and we'll need a parent contact." />
-      <View style={styles.segmentRow}>
-        <Segment
-          label="Adult"
-          icon="user"
-          active={isKidMode === false}
-          onPress={() => setIsKidMode(false)}
-        />
-        <Segment
-          label="Kid (under 13)"
-          icon="smile"
-          active={isKidMode === true}
-          onPress={() => setIsKidMode(true)}
-        />
-      </View>
-
-      <View style={styles.spacer} />
-
-      <Question title="Their birthday" sub="Optional — handy for age-appropriate drills and check-ins." />
-      <Pressable
-        onPress={() => setShowDatePicker(true)}
-        style={styles.dateBtn}
-      >
-        <Feather name="calendar" size={18} color={theme.fgMuted} />
-        <Text style={[styles.dateBtnText, !birthdate && styles.dateBtnPlaceholder]}>
-          {birthdate ? formatBirthday(birthdate) : 'Pick a date'}
-        </Text>
-      </Pressable>
-      {showDatePicker && (
-        <DateTimePicker
-          value={birthdate ?? defaultBirthday()}
-          mode="date"
-          display={Platform.OS === 'ios' ? 'inline' : 'default'}
-          maximumDate={new Date()}
-          onChange={onDateChange}
-        />
-      )}
-      {Platform.OS === 'ios' && showDatePicker && (
-        <Pressable onPress={() => setShowDatePicker(false)} style={styles.doneBtn}>
-          <Text style={styles.doneBtnText}>Done</Text>
-        </Pressable>
-      )}
-    </>
-  )
-}
-
-function Step2({
-  isKidMode, firstName,
+  fullName, setFullName,
+  isKidMode, setIsKidMode,
+  birthdate, onPickBirthday,
   contactPhone, setContactPhone, contactEmail, setContactEmail,
   parentName, setParentName, parentPhone, setParentPhone,
 }: {
-  isKidMode: boolean
-  firstName: string
+  fullName: string; setFullName: (v: string) => void
+  isKidMode: boolean | null; setIsKidMode: (v: boolean) => void
+  birthdate: Date | null; onPickBirthday: () => void
   contactPhone: string; setContactPhone: (v: string) => void
   contactEmail: string; setContactEmail: (v: string) => void
   parentName: string; setParentName: (v: string) => void
   parentPhone: string; setParentPhone: (v: string) => void
 }) {
-  if (isKidMode) {
-    return (
-      <>
-        <Question
-          title={`Who's ${firstName || 'the kid'}'s parent or guardian?`}
-          sub="We'll send schedule and reminder messages here."
-        />
-        <BigField label="Parent or guardian name">
-          <TextInput
-            style={styles.bigInput}
-            placeholder="Alex Martinez"
-            placeholderTextColor={theme.fgFaint}
-            value={parentName}
-            onChangeText={setParentName}
-            autoCapitalize="words"
-            autoFocus
-          />
-        </BigField>
-        <BigField label="Parent phone">
-          <TextInput
-            style={styles.bigInput}
-            placeholder="(555) 123-4567"
-            placeholderTextColor={theme.fgFaint}
-            value={parentPhone}
-            onChangeText={setParentPhone}
-            keyboardType="phone-pad"
-          />
-        </BigField>
-
-        <View style={styles.spacer} />
-        <Question
-          title={`Can ${firstName || 'they'} also be reached directly?`}
-          sub="Optional — some families prefer the kid get reminders too."
-        />
-        <BigField label="Kid's phone (optional)">
-          <TextInput
-            style={styles.bigInput}
-            placeholder="(555) 123-4567"
-            placeholderTextColor={theme.fgFaint}
-            value={contactPhone}
-            onChangeText={setContactPhone}
-            keyboardType="phone-pad"
-          />
-        </BigField>
-      </>
-    )
-  }
-
+  const firstName = firstNameOf(fullName)
   return (
     <>
-      <Question
-        title={`How do you reach ${firstName || 'them'}?`}
-        sub="Both are optional — fill in whatever you've got."
-      />
-      <BigField label="Phone (optional)">
+      <Question title="Tell me about them" sub="The basics — we'll only ask what's needed." />
+
+      <BigField label="Their name">
         <TextInput
           style={styles.bigInput}
-          placeholder="(555) 123-4567"
+          placeholder="Jamie Martinez"
           placeholderTextColor={theme.fgFaint}
-          value={contactPhone}
-          onChangeText={setContactPhone}
-          keyboardType="phone-pad"
-          autoFocus
+          value={fullName}
+          onChangeText={setFullName}
+          autoCapitalize="words"
+          returnKeyType="next"
         />
       </BigField>
-      <BigField label="Email (optional)">
-        <TextInput
-          style={styles.bigInput}
-          placeholder="player@email.com"
-          placeholderTextColor={theme.fgFaint}
-          value={contactEmail}
-          onChangeText={setContactEmail}
-          keyboardType="email-address"
-          autoCapitalize="none"
-          autoCorrect={false}
-        />
+
+      <BigField label="Adult or kid?">
+        <View style={styles.segmentRow}>
+          <Segment
+            label="Adult"
+            icon="user"
+            active={isKidMode === false}
+            onPress={() => setIsKidMode(false)}
+          />
+          <Segment
+            label="Kid (under 13)"
+            icon="smile"
+            active={isKidMode === true}
+            onPress={() => setIsKidMode(true)}
+          />
+        </View>
       </BigField>
+
+      <BigField label="Birthday (optional)">
+        <Pressable onPress={onPickBirthday} style={styles.dateBtn}>
+          <Feather name="calendar" size={18} color={theme.fgMuted} />
+          <Text style={[styles.dateBtnText, !birthdate && styles.dateBtnPlaceholder]}>
+            {birthdate ? formatBirthday(birthdate) : 'Pick a date'}
+          </Text>
+        </Pressable>
+      </BigField>
+
+      {isKidMode === true ? (
+        <>
+          <View style={styles.divider} />
+          <Question
+            title={firstName ? `${firstName}'s parent contact` : "Parent contact"}
+            sub="Required for kids — we send schedule and reminder messages here."
+          />
+          <BigField label="Parent or guardian name">
+            <TextInput
+              style={styles.bigInput}
+              placeholder="Alex Martinez"
+              placeholderTextColor={theme.fgFaint}
+              value={parentName}
+              onChangeText={setParentName}
+              autoCapitalize="words"
+            />
+          </BigField>
+          <BigField label="Parent phone">
+            <TextInput
+              style={styles.bigInput}
+              placeholder="(555) 123-4567"
+              placeholderTextColor={theme.fgFaint}
+              value={parentPhone}
+              onChangeText={setParentPhone}
+              keyboardType="phone-pad"
+            />
+          </BigField>
+          <BigField label="Kid's phone (optional)">
+            <TextInput
+              style={styles.bigInput}
+              placeholder="If they have one"
+              placeholderTextColor={theme.fgFaint}
+              value={contactPhone}
+              onChangeText={setContactPhone}
+              keyboardType="phone-pad"
+            />
+          </BigField>
+        </>
+      ) : isKidMode === false ? (
+        <>
+          <View style={styles.divider} />
+          <Question
+            title="How do you reach them?"
+            sub="Both optional — fill in whatever you've got."
+          />
+          <BigField label="Phone">
+            <TextInput
+              style={styles.bigInput}
+              placeholder="(555) 123-4567"
+              placeholderTextColor={theme.fgFaint}
+              value={contactPhone}
+              onChangeText={setContactPhone}
+              keyboardType="phone-pad"
+            />
+          </BigField>
+          <BigField label="Email">
+            <TextInput
+              style={styles.bigInput}
+              placeholder="player@email.com"
+              placeholderTextColor={theme.fgFaint}
+              value={contactEmail}
+              onChangeText={setContactEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+          </BigField>
+        </>
+      ) : null}
     </>
   )
 }
 
-function Step3({
+function Step2({
   firstName, skillLevel, setSkillLevel,
   lessonCadence, setLessonCadence, primaryFocus, setPrimaryFocus,
+  intakeNotes, setIntakeNotes,
 }: {
   firstName: string
   skillLevel: string; setSkillLevel: (v: string) => void
   lessonCadence: string; setLessonCadence: (v: string) => void
   primaryFocus: string; setPrimaryFocus: (v: string) => void
+  intakeNotes: string; setIntakeNotes: (v: string) => void
 }) {
+  const isCustomSkill = !!skillLevel && !SKILL_PRESETS.includes(skillLevel)
   return (
     <>
       <Question
-        title={`Where is ${firstName || 'this player'} at?`}
-        sub="Pick what fits — or type your own."
-      />
-      <View style={styles.chipGrid}>
-        {SKILL_PRESETS.map(opt => {
-          const active = skillLevel === opt
-          return (
-            <Pressable
-              key={opt}
-              onPress={() => setSkillLevel(active ? '' : opt)}
-              style={[styles.bigChip, active && styles.bigChipActive]}
-            >
-              <Text style={[styles.bigChipText, active && styles.bigChipTextActive]}>{opt}</Text>
-            </Pressable>
-          )
-        })}
-      </View>
-      <TextInput
-        style={[styles.bigInput, { marginTop: spacing[2] }]}
-        placeholder="Or describe it (e.g. Returning after break)"
-        placeholderTextColor={theme.fgFaint}
-        value={SKILL_PRESETS.includes(skillLevel) ? '' : skillLevel}
-        onChangeText={setSkillLevel}
-        autoCapitalize="sentences"
+        title={firstName ? `How will you coach ${firstName}?` : 'How will you coach them?'}
+        sub="All of this is optional — skip what you don't know yet."
       />
 
-      <View style={styles.spacer} />
+      <BigField label="Where they're at">
+        <View style={styles.chipGrid}>
+          {SKILL_PRESETS.map(opt => {
+            const active = skillLevel === opt
+            return (
+              <Pressable
+                key={opt}
+                onPress={() => setSkillLevel(active ? '' : opt)}
+                style={[styles.bigChip, active && styles.bigChipActive]}
+              >
+                <Text style={[styles.bigChipText, active && styles.bigChipTextActive]}>{opt}</Text>
+              </Pressable>
+            )
+          })}
+        </View>
+        {isCustomSkill && (
+          <TextInput
+            style={[styles.bigInput, { marginTop: spacing[2] }]}
+            placeholder="Or describe it"
+            placeholderTextColor={theme.fgFaint}
+            value={skillLevel}
+            onChangeText={setSkillLevel}
+            autoCapitalize="sentences"
+          />
+        )}
+      </BigField>
 
-      <Question title="How often do you see them?" />
-      <View style={styles.chipGrid}>
-        {CADENCE_OPTIONS.map(opt => {
-          const active = lessonCadence === opt
-          return (
-            <Pressable
-              key={opt}
-              onPress={() => setLessonCadence(active ? '' : opt)}
-              style={[styles.bigChip, active && styles.bigChipActive]}
-            >
-              <Text style={[styles.bigChipText, active && styles.bigChipTextActive]}>{opt}</Text>
-            </Pressable>
-          )
-        })}
-      </View>
+      <BigField label="How often do you see them?">
+        <View style={styles.chipGrid}>
+          {CADENCE_OPTIONS.map(opt => {
+            const active = lessonCadence === opt
+            return (
+              <Pressable
+                key={opt}
+                onPress={() => setLessonCadence(active ? '' : opt)}
+                style={[styles.bigChip, active && styles.bigChipActive]}
+              >
+                <Text style={[styles.bigChipText, active && styles.bigChipTextActive]}>{opt}</Text>
+              </Pressable>
+            )
+          })}
+        </View>
+      </BigField>
 
-      <View style={styles.spacer} />
+      <BigField label="What are you working on first?">
+        <TextInput
+          style={styles.bigInput}
+          placeholder="Backhand consistency, match prep…"
+          placeholderTextColor={theme.fgFaint}
+          value={primaryFocus}
+          onChangeText={setPrimaryFocus}
+        />
+      </BigField>
 
-      <Question
-        title="What are you working on first?"
-        sub="One sentence is plenty."
-      />
-      <TextInput
-        style={styles.bigInput}
-        placeholder="Backhand consistency, match prep…"
-        placeholderTextColor={theme.fgFaint}
-        value={primaryFocus}
-        onChangeText={setPrimaryFocus}
-      />
+      <BigField label="Anything else worth remembering?">
+        <TextInput
+          style={[styles.bigInput, styles.bigInputMultiline]}
+          placeholder={`Goals, injuries, schedule quirks${firstName ? `, what ${firstName} said in the first call` : ''}…`}
+          placeholderTextColor={theme.fgFaint}
+          value={intakeNotes}
+          onChangeText={setIntakeNotes}
+          multiline
+          textAlignVertical="top"
+        />
+      </BigField>
     </>
   )
 }
 
-function Step4({
-  firstName, intakeNotes, setIntakeNotes,
+// ─── Birthday picker ──────────────────────────────────────────────────────────
+// Rendered as its own Modal so it doesn't fight the BottomSheet's keyboard
+// listener for layout. iOS shows a spinner picker with Cancel/Done; Android
+// uses the native dialog directly.
+
+function BirthdayPicker({
+  visible, value, onClose, onChange,
 }: {
-  firstName: string
-  intakeNotes: string; setIntakeNotes: (v: string) => void
+  visible: boolean
+  value: Date | null
+  onClose: () => void
+  onChange: (d: Date) => void
 }) {
+  const [draft, setDraft] = useState<Date>(value ?? defaultBirthday())
+
+  function handleIOSDone() {
+    onChange(draft)
+    onClose()
+  }
+
+  function handleAndroidChange(_e: DateTimePickerEvent, selected?: Date) {
+    onClose()
+    if (selected) onChange(selected)
+  }
+
+  if (!visible) return null
+
+  if (Platform.OS === 'android') {
+    return (
+      <DateTimePicker
+        value={value ?? defaultBirthday()}
+        mode="date"
+        display="default"
+        maximumDate={new Date()}
+        onChange={handleAndroidChange}
+      />
+    )
+  }
+
   return (
-    <>
-      <Question
-        title="Anything you want to remember?"
-        sub={`Goals, injuries, schedule quirks${firstName ? `, what ${firstName} said in the first call` : ''} — anything you'd jot in a notebook. Optional.`}
-      />
-      <TextInput
-        style={[styles.bigInput, styles.bigInputMultiline]}
-        placeholder={`E.g. "Recovering from a shoulder strain, OK to serve at 75%. Loves doubles."`}
-        placeholderTextColor={theme.fgFaint}
-        value={intakeNotes}
-        onChangeText={setIntakeNotes}
-        multiline
-        textAlignVertical="top"
-        autoFocus
-      />
-    </>
+    <Modal visible transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable style={styles.pickerBackdrop} onPress={onClose} />
+      <View style={styles.pickerSheet}>
+        <View style={styles.pickerHeader}>
+          <Pressable onPress={onClose} hitSlop={12}>
+            <Text style={styles.pickerCancel}>Cancel</Text>
+          </Pressable>
+          <Text style={styles.pickerTitle}>Birthday</Text>
+          <Pressable onPress={handleIOSDone} hitSlop={12}>
+            <Text style={styles.pickerDone}>Done</Text>
+          </Pressable>
+        </View>
+        <DateTimePicker
+          value={draft}
+          mode="date"
+          display="spinner"
+          maximumDate={new Date()}
+          onChange={(_e, selected) => { if (selected) setDraft(selected) }}
+          style={styles.pickerBody}
+        />
+      </View>
+    </Modal>
   )
 }
 
@@ -583,7 +596,7 @@ const styles = StyleSheet.create({
   scroll: { flex: 1, minHeight: 0 },
   scrollContent: { paddingHorizontal: spacing[5], paddingTop: spacing[5], paddingBottom: spacing[6] },
 
-  questionWrap: { marginBottom: spacing[3] },
+  questionWrap: { marginBottom: spacing[4] },
   questionTitle: {
     fontSize: fontSize['2xl'],
     fontWeight: fontWeight.bold,
@@ -598,7 +611,11 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
 
-  spacer: { height: spacing[6] },
+  divider: {
+    height: 1,
+    backgroundColor: theme.borderSubtle,
+    marginVertical: spacing[5],
+  },
 
   bigField: { marginBottom: spacing[3] },
   bigFieldLabel: {
@@ -618,7 +635,7 @@ const styles = StyleSheet.create({
     color: theme.fg,
     minHeight: 52,
   },
-  bigInputMultiline: { minHeight: 140, paddingTop: 14, fontSize: fontSize.base, lineHeight: 22 },
+  bigInputMultiline: { minHeight: 120, paddingTop: 14, fontSize: fontSize.base, lineHeight: 22 },
 
   segmentRow: { flexDirection: 'row', gap: spacing[3] },
   segment: {
@@ -654,13 +671,6 @@ const styles = StyleSheet.create({
   },
   dateBtnText: { fontSize: fontSize.lg, color: theme.fg },
   dateBtnPlaceholder: { color: theme.fgFaint },
-
-  doneBtn: {
-    alignSelf: 'flex-end',
-    paddingHorizontal: spacing[4],
-    paddingVertical: spacing[2],
-  },
-  doneBtnText: { fontSize: fontSize.base, fontWeight: fontWeight.semi, color: forest[700] },
 
   chipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2] },
   bigChip: {
@@ -723,4 +733,31 @@ const styles = StyleSheet.create({
   primaryBtnPressed: { backgroundColor: theme.primaryPress },
   primaryBtnDisabled: { opacity: 0.4 },
   primaryBtnText: { fontSize: fontSize.lg, fontWeight: fontWeight.semi, color: '#fff' },
+
+  // Birthday picker modal
+  pickerBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(15, 31, 24, 0.4)',
+  },
+  pickerSheet: {
+    position: 'absolute',
+    left: 0, right: 0, bottom: 0,
+    backgroundColor: theme.bgElevated,
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
+    paddingBottom: 32,
+  },
+  pickerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing[5],
+    paddingVertical: spacing[4],
+    borderBottomWidth: 1,
+    borderBottomColor: theme.borderSubtle,
+  },
+  pickerTitle: { fontSize: fontSize.base, fontWeight: fontWeight.semi, color: theme.fg },
+  pickerCancel: { fontSize: fontSize.base, color: theme.fgMuted, fontWeight: fontWeight.medium },
+  pickerDone: { fontSize: fontSize.base, color: forest[700], fontWeight: fontWeight.semi },
+  pickerBody: { width: '100%' },
 })
