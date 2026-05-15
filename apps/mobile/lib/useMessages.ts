@@ -43,17 +43,18 @@ export function useMessages(conversationId: string) {
     return () => { supabase.removeChannel(channel) }
   }, [conversationId])
 
-  async function sendMessage(content: string) {
-    if (!user || !profile) return
+  async function sendMessage(content: string): Promise<{ error: string | null }> {
+    if (!user) return { error: 'Not signed in' }
+
+    const senderName = profile?.full_name || user.email || 'Coach'
     const optimistic: Message = {
       id: `temp-${Date.now()}`,
       conversation_id: conversationId,
       sender_id: user.id,
-      sender_name: profile.full_name || user.email || 'Coach',
+      sender_name: senderName,
       content,
       created_at: new Date().toISOString(),
     }
-    // Optimistic update
     setMessages(prev => [...prev, optimistic])
 
     const { data, error } = await supabase
@@ -61,24 +62,21 @@ export function useMessages(conversationId: string) {
       .insert({
         conversation_id: conversationId,
         sender_id: user.id,
-        sender_name: profile.full_name || user.email || 'Coach',
+        sender_name: senderName,
         content,
       })
       .select()
       .single()
 
     if (error) {
-      // Roll back optimistic update on failure
       setMessages(prev => prev.filter(m => m.id !== optimistic.id))
-    } else {
-      // Replace optimistic with real row
-      setMessages(prev => prev.map(m => m.id === optimistic.id ? data : m))
-      // Update conversation preview
-      await supabase
-        .from('conversations')
-        .update({ last_message: content, last_message_at: data.created_at })
-        .eq('id', conversationId)
+      return { error: error.message }
     }
+
+    // The DB trigger `on_message_inserted` keeps conversations.last_message*
+    // in sync, so we don't write it from the client.
+    setMessages(prev => prev.map(m => m.id === optimistic.id ? data : m))
+    return { error: null }
   }
 
   return { messages, loading, sendMessage }

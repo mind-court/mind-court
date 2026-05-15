@@ -1,7 +1,7 @@
 import { Tabs } from 'expo-router'
 import { Feather } from '@expo/vector-icons'
 import { theme } from '@mind-court/ui'
-import { useConversations } from '../../lib/useConversations'
+import { useConversations, isUnread } from '../../lib/useConversations'
 
 type FeatherName = React.ComponentProps<typeof Feather>['name']
 
@@ -13,10 +13,7 @@ function icon(name: FeatherName) {
 
 export default function CoachLayout() {
   const { conversations } = useConversations()
-  const recentCount = conversations.filter(c =>
-    c.last_message_at != null &&
-    Date.now() - new Date(c.last_message_at).getTime() < 86400000
-  ).length
+  const unreadCount = conversations.filter(isUnread).length
 
   return (
     <Tabs
@@ -40,7 +37,7 @@ export default function CoachLayout() {
     >
       <Tabs.Screen
         name="index"
-        options={{ title: 'Today', tabBarIcon: icon('calendar') }}
+        options={{ title: 'Schedule', tabBarIcon: icon('calendar') }}
       />
       <Tabs.Screen
         name="players"
@@ -51,7 +48,7 @@ export default function CoachLayout() {
         options={{
           title: 'Messages',
           tabBarIcon: icon('message-circle'),
-          tabBarBadge: recentCount > 0 ? recentCount : undefined,
+          tabBarBadge: unreadCount > 0 ? unreadCount : undefined,
         }}
       />
       <Tabs.Screen

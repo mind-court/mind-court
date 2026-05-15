@@ -1,22 +1,17 @@
 import { useState } from 'react'
 import {
   View, Text, StyleSheet, FlatList, Pressable,
-  ActivityIndicator, TextInput,
+  ActivityIndicator, TextInput, Alert,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { Feather } from '@expo/vector-icons'
 import { theme, spacing, fontSize, fontWeight, radius, forest, court } from '@mind-court/ui'
-import { useConversations } from '../../lib/useConversations'
+import { useConversations, isUnread } from '../../lib/useConversations'
 import { usePlayers } from '../../lib/usePlayers'
 import { PlayerPickerSheet } from '../../components/PlayerPickerSheet'
 import { avatarColor } from '../../lib/avatarColor'
 import type { Conversation, Player } from '../../types/db'
-
-function isRecent(dateStr: string | null): boolean {
-  if (!dateStr) return false
-  return Date.now() - new Date(dateStr).getTime() < 86400000
-}
 
 export default function Messages() {
   const { conversations, loading, startConversation } = useConversations()
@@ -26,10 +21,10 @@ export default function Messages() {
   const insets = useSafeAreaInsets()
 
   const sorted = [...conversations].sort((a, b) => {
-    const ra = isRecent(a.last_message_at)
-    const rb = isRecent(b.last_message_at)
-    if (ra && !rb) return -1
-    if (!ra && rb) return 1
+    const ua = isUnread(a)
+    const ub = isUnread(b)
+    if (ua && !ub) return -1
+    if (!ua && ub) return 1
     return (b.last_message_at ?? '').localeCompare(a.last_message_at ?? '')
   })
 
@@ -39,7 +34,11 @@ export default function Messages() {
 
   async function handlePickPlayer(player: Player) {
     const { data, error } = await startConversation(player.full_name, player.id)
-    if (data) router.push(`/coach/thread/${data.id}`)
+    if (data) {
+      router.push(`/coach/thread/${data.id}`)
+    } else if (error) {
+      Alert.alert('Could not open conversation', error)
+    }
   }
 
   return (
@@ -70,12 +69,14 @@ export default function Messages() {
         </View>
 
         {loading ? (
-          <ActivityIndicator color={theme.primary} style={{ marginTop: spacing[8] }} />
+          <ActivityIndicator color={theme.primary} style={styles.loader} />
         ) : conversations.length === 0 ? (
           <View style={styles.empty}>
             <Feather name="message-circle" size={40} color={forest[300]} style={styles.emptyIcon} />
             <Text style={styles.emptyTitle}>No messages yet</Text>
-            <Text style={styles.emptySub}>Start a conversation with one of your players.</Text>
+            <Text style={styles.emptySub}>
+              Start a conversation with one of your players to get coaching feedback and scheduling going.
+            </Text>
           </View>
         ) : filtered.length === 0 ? (
           <View style={styles.empty}>
@@ -116,27 +117,30 @@ function ConversationRow({ conversation, onPress }: { conversation: Conversation
     ? formatTime(new Date(conversation.last_message_at))
     : ''
 
-  const recent = isRecent(conversation.last_message_at)
+  const unread = isUnread(conversation)
 
   return (
     <Pressable
       style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
       onPress={onPress}
     >
-      <View style={[styles.recentDot, recent && styles.recentDotVisible]} />
       <View style={[styles.avatar, { backgroundColor: avatarColor(conversation.player_name) }]}>
         <Text style={styles.avatarText}>{initials}</Text>
       </View>
       <View style={styles.rowInfo}>
         <View style={styles.rowTop}>
-          <Text style={[styles.rowName, recent && styles.rowNameRecent]}>{conversation.player_name}</Text>
-          {time ? <Text style={styles.rowTime}>{time}</Text> : null}
+          <Text style={[styles.rowName, unread && styles.rowNameUnread]} numberOfLines={1}>
+            {conversation.player_name}
+          </Text>
+          {time ? <Text style={[styles.rowTime, unread && styles.rowTimeUnread]}>{time}</Text> : null}
         </View>
-        <Text style={[styles.rowPreview, recent && styles.rowPreviewRecent]} numberOfLines={1}>
-          {conversation.last_message ?? 'No messages yet'}
-        </Text>
+        <View style={styles.rowBottom}>
+          <Text style={[styles.rowPreview, unread && styles.rowPreviewUnread]} numberOfLines={1}>
+            {conversation.last_message ?? 'No messages yet'}
+          </Text>
+          {unread && <View style={styles.unreadDot} />}
+        </View>
       </View>
-      <Text style={styles.chevron}>›</Text>
     </Pressable>
   )
 }
@@ -157,6 +161,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: spacing[4],
+    paddingBottom: spacing[3],
   },
   heading: {
     fontSize: fontSize['3xl'],
@@ -190,6 +195,7 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     color: theme.fg,
   },
+  loader: { marginTop: spacing[8] },
   list: { paddingHorizontal: spacing[4], paddingBottom: spacing[16] },
   empty: {
     flex: 1,
@@ -198,16 +204,13 @@ const styles = StyleSheet.create({
     paddingBottom: spacing[16],
     paddingHorizontal: spacing[8],
   },
-  emptyIcon: {
-    marginBottom: spacing[4],
-  },
+  emptyIcon: { marginBottom: spacing[4] },
   emptyTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.semi, color: theme.fg },
   emptySub: {
     fontSize: fontSize.sm,
     color: theme.fgMuted,
     textAlign: 'center',
     marginTop: spacing[1],
-    paddingHorizontal: spacing[8],
   },
   row: {
     flexDirection: 'row',
@@ -218,28 +221,36 @@ const styles = StyleSheet.create({
     gap: spacing[3],
   },
   rowPressed: { backgroundColor: theme.bgSunken },
-  recentDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: 'transparent',
-    flexShrink: 0,
-  },
-  recentDotVisible: {
-    backgroundColor: court[500],
-  },
   avatar: {
     width: 44, height: 44, borderRadius: 22,
     justifyContent: 'center', alignItems: 'center',
     flexShrink: 0,
   },
   avatarText: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: '#fff' },
-  rowInfo: { flex: 1, gap: 3 },
-  rowTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  rowName: { fontSize: fontSize.base, fontWeight: fontWeight.semi, color: theme.fg },
-  rowNameRecent: { fontWeight: fontWeight.bold },
-  rowTime: { fontSize: fontSize.xs, color: theme.fgFaint },
-  rowPreview: { fontSize: fontSize.sm, color: theme.fgMuted, fontWeight: fontWeight.regular },
-  rowPreviewRecent: { fontWeight: fontWeight.medium },
-  chevron: { fontSize: 22, color: theme.fgSubtle, lineHeight: 24 },
+  rowInfo: { flex: 1, gap: 3, minWidth: 0 },
+  rowTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: spacing[2],
+  },
+  rowBottom: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: spacing[2],
+  },
+  rowName: { fontSize: fontSize.base, fontWeight: fontWeight.semi, color: theme.fg, flexShrink: 1 },
+  rowNameUnread: { fontWeight: fontWeight.bold },
+  rowTime: { fontSize: fontSize.xs, color: theme.fgFaint, flexShrink: 0 },
+  rowTimeUnread: { color: theme.primary, fontWeight: fontWeight.semi },
+  rowPreview: { fontSize: fontSize.sm, color: theme.fgMuted, flex: 1 },
+  rowPreviewUnread: { color: theme.fg, fontWeight: fontWeight.medium },
+  unreadDot: {
+    width: 9,
+    height: 9,
+    borderRadius: 999,
+    backgroundColor: court[500],
+    flexShrink: 0,
+  },
 })
