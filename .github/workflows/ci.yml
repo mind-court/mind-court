@@ -175,7 +175,7 @@ jobs:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           model: claude-haiku-4-5
           max_turns: 10
-          allowed_tools: "Bash(cat:*),Bash(wc:*),Bash(grep:*),Bash(echo:*),Read,Glob,Grep"
+          allowed_tools: "Bash(cat:*),Bash(wc:*),Bash(grep:*),Bash(echo:*),Bash(printf:*),Read,Write,Glob,Grep"
           prompt: |
             You are running the Mind Court review system on a PR.
 
