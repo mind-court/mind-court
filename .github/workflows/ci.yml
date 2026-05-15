@@ -134,9 +134,104 @@ jobs:
           git commit -m "[auto-fix] iteration ${iter}: typecheck"
           git push
 
-  auto-merge:
+  # Runs the Mind Court review-orchestrator across the diff. Reads the
+  # specialist agent definitions from .claude/agents/review-*.md and applies
+  # their rules in one consolidated pass (Haiku model). Posts findings as a
+  # PR comment and exposes has_critical so auto-merge can gate on it.
+  # Skippable per-PR via the 'skip-review' label.
+  review:
     needs: typecheck
-    if: needs.typecheck.outputs.passed == 'true' && !contains(github.event.pull_request.labels.*.name, 'do-not-merge') && github.event.pull_request.draft == false
+    if: |
+      needs.typecheck.outputs.passed == 'true' &&
+      !contains(github.event.pull_request.labels.*.name, 'skip-review') &&
+      github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    outputs:
+      has_critical: ${{ steps.review.outputs.has_critical }}
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          fetch-depth: 0
+
+      - name: Capture diff and changed files
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr diff ${{ github.event.pull_request.number }} > /tmp/pr.diff
+          gh pr view ${{ github.event.pull_request.number }} \
+            --json files --jq '.files[].path' > /tmp/changed-files.txt
+          echo "Diff size: $(wc -l < /tmp/pr.diff) lines"
+          echo "Changed files:"
+          cat /tmp/changed-files.txt
+
+      - uses: anthropics/claude-code-base-action@beta
+        id: review
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          model: claude-haiku-4-5
+          max_turns: 10
+          allowed_tools: "Bash(cat:*),Bash(wc:*),Bash(grep:*),Bash(echo:*),Bash(printf:*),Read,Write,Glob,Grep"
+          prompt: |
+            You are running the Mind Court review system on a PR.
+
+            Inputs available:
+              - /tmp/pr.diff           — full unified diff
+              - /tmp/changed-files.txt — one path per line
+              - .claude/agents/review-orchestrator.md  — dispatch rules
+              - .claude/agents/review-*.md             — specialist rules
+
+            Procedure:
+            1. Read .claude/agents/review-orchestrator.md to learn which specialists apply to which file paths.
+            2. Read each applicable specialist's .md (review-security, review-design-tokens, review-supabase, review-types, review-density, review-lessons, review-players, review-messages, review-account).
+            3. Apply each specialist's rules to the diff yourself — you cannot dispatch sub-agents in this environment, so consolidate.
+            4. Produce a single Markdown report with this exact structure:
+
+               # 🤖 Mind Court Review
+               ## CRITICAL (N)
+               - `path:line` [specialist] — issue — fix
+               ## WARNING (N)
+               - ...
+               ## NIT (N)
+               - ...
+               ## Coverage
+               - specialist-name: N files reviewed
+               - ...
+
+               If a severity bucket has 0 entries, omit it entirely (don't print "CRITICAL (0)").
+               If there are no findings at all, the body should be just: "✅ No findings. LGTM."
+
+            5. Write the report to /tmp/review-report.md.
+            6. Append `has_critical=true` to $GITHUB_OUTPUT if there are any CRITICAL findings, otherwise `has_critical=false`.
+
+            Rules:
+            - Be specific: every finding cites file:line.
+            - Be concise: do not quote large code blocks.
+            - Do not invent issues to look thorough.
+            - If the diff is huge (>2000 lines), focus on the highest-signal files first; you have 10 turns total.
+
+      - name: Post review comment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [[ -s /tmp/review-report.md ]]; then
+            gh pr comment ${{ github.event.pull_request.number }} \
+              --body-file /tmp/review-report.md
+          else
+            echo "No review report produced — skipping comment."
+          fi
+
+  auto-merge:
+    needs: [typecheck, review]
+    if: |
+      needs.typecheck.outputs.passed == 'true' &&
+      needs.review.outputs.has_critical != 'true' &&
+      !contains(github.event.pull_request.labels.*.name, 'do-not-merge') &&
+      github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -147,7 +242,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # Direct merge (not --auto). GitHub auto-merge requires branch
-          # protection rules, which require GitHub Pro on private repos.
-          # If you upgrade, swap this to: gh pr merge ... --auto --merge
+          # protection rules with required checks, which require Pro on
+          # private repos. If you upgrade, swap to: gh pr merge ... --auto --merge
           gh pr merge ${{ github.event.pull_request.number }} --merge \
             --repo ${{ github.repository }}
