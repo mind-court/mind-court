@@ -2,8 +2,13 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
+    "typeRoots": [
+      "../../node_modules/.pnpm/node_modules/@types",
+      "node_modules/@types"
+    ],
     "paths": {
-      "@mind-court/ui": ["../../packages/ui/src/index.ts"]
+      "@mind-court/ui": ["../../packages/ui/src/index.ts"],
+      "@expo/vector-icons": ["../../node_modules/.pnpm/node_modules/@expo/vector-icons/build/Icons"]
     }
   }
 }
