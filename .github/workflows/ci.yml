@@ -1,0 +1,153 @@
+name: CI
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths-ignore:
+      - '**.md'
+      - '.claude/agents/**'
+      - 'supabase/migrations/**'
+
+concurrency:
+  group: ci-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  typecheck:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    outputs:
+      passed: ${{ steps.tsc.outcome == 'success' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+
+      # pnpm version is read from package.json#packageManager
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - id: tsc
+        run: pnpm typecheck 2>&1 | tee tsc.log
+        continue-on-error: true
+
+      - if: steps.tsc.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: tsc-log
+          path: tsc.log
+          retention-days: 3
+
+  # Dormant by default — costs Anthropic API tokens. To enable:
+  #   Settings → Secrets and variables → Actions → Variables → New variable
+  #   Name: ENABLE_BOT_FIX   Value: true
+  # And add the ANTHROPIC_API_KEY secret. Until then this job is skipped and
+  # you fix typecheck failures locally with the fix-typecheck agent.
+  auto-fix:
+    needs: typecheck
+    if: |
+      vars.ENABLE_BOT_FIX == 'true' &&
+      needs.typecheck.outputs.passed == 'false' &&
+      !contains(github.event.pull_request.labels.*.name, 'skip-bot')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check iteration cap
+        id: iter
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          count=$(git log origin/main..HEAD --grep '\[auto-fix\]' --oneline | wc -l)
+          echo "count=$count" >> $GITHUB_OUTPUT
+          if [[ $count -ge 5 ]]; then
+            gh pr comment ${{ github.event.pull_request.number }} \
+              --body ":octagonal_sign: Hit 5 auto-fix iterations without going green. Human review needed. Add \`skip-bot\` label to stop the bot retrying."
+            echo "stop=true" >> $GITHUB_OUTPUT
+          fi
+
+      - if: steps.iter.outputs.stop == 'true'
+        run: exit 0
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - uses: anthropics/claude-code-base-action@beta
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          model: claude-haiku-4-5
+          max_turns: 12
+          allowed_tools: "Bash(pnpm typecheck),Bash(pnpm exec tsc:*),Bash(git diff:*),Bash(git status),Read,Edit,Write,Glob,Grep"
+          prompt: |
+            You are fixing TypeScript errors in a Mind Court PR so CI can pass.
+
+            Steps:
+            1. Run `pnpm typecheck` to see the failing errors.
+            2. Apply the MINIMUM edits needed to make typecheck pass.
+            3. Run `pnpm typecheck` again to confirm.
+            4. If still failing, iterate. Do not exceed 12 turns total.
+
+            Rules:
+            - Do not refactor. Do not change feature behavior.
+            - Do not add or rename exports unless the type error directly requires it.
+            - Do not edit migration files (`supabase/migrations/**`).
+            - Do not edit workflow files (`.github/workflows/**`).
+            - Do not add new dependencies. Do not modify `package.json` or `pnpm-lock.yaml`.
+            - If the error suggests a missing type that should come from the database, prefer adding the field to `apps/mobile/types/db.ts` over casting to `any`.
+            - If you cannot fix an error with a minimum edit, leave a one-line `// TODO(auto-fix): <reason>` comment above the error site and continue. The human reviewer will pick it up.
+
+            When typecheck passes, exit. Do not continue.
+
+      - name: Commit and push fix
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if git diff --quiet; then
+            echo "No edits made by auto-fix. Exiting."
+            exit 0
+          fi
+          git config user.name "claude-fix-bot"
+          git config user.email "bot@noreply.anthropic.com"
+          git add -A
+          iter=$(( ${{ steps.iter.outputs.count }} + 1 ))
+          git commit -m "[auto-fix] iteration ${iter}: typecheck"
+          git push
+
+  auto-merge:
+    needs: typecheck
+    if: needs.typecheck.outputs.passed == 'true' && !contains(github.event.pull_request.labels.*.name, 'do-not-merge') && github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Merge PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Direct merge (not --auto). GitHub auto-merge requires branch
+          # protection rules, which require GitHub Pro on private repos.
+          # If you upgrade, swap this to: gh pr merge ... --auto --merge
+          gh pr merge ${{ github.event.pull_request.number }} --merge \
+            --repo ${{ github.repository }}
