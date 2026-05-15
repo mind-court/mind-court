@@ -65,7 +65,7 @@ export default function Messages() {
           {players.length === 0 ? (
             <Text style={styles.pickerEmpty}>Add players first from the Players tab.</Text>
           ) : (
-            <FL
+            <FlatList
               data={players}
               keyExtractor={p => p.id}
               renderItem={({ item }) => (
