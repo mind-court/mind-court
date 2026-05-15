@@ -38,7 +38,7 @@ export default function SignIn() {
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text style={styles.logo}>Mind Court</Text>
         <Text style={styles.tagline}>
-          {mode === 'signin' ? 'Sign in to your account' : 'Create your coach account'}
+          {mode === 'signin' ? 'Welcome back, coach.' : 'Set up your coaching profile.'}
         </Text>
 
         {mode === 'signup' && (

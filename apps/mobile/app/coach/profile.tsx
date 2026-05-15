@@ -1,4 +1,4 @@
-import { ScrollView, View, Text, Pressable, StyleSheet } from 'react-native'
+import { ScrollView, View, Text, Pressable, StyleSheet, Alert } from 'react-native'
 import { router } from 'expo-router'
 import { useAuth } from '../../lib/auth'
 import { useLessons } from '../../lib/useLessons'
@@ -19,9 +19,18 @@ export default function Profile() {
   const initials = profile?.full_name
     ?.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() ?? '?'
 
-  async function handleSignOut() {
-    await signOut()
-    router.replace('/sign-in')
+  function handleSignOut() {
+    Alert.alert('Sign out', 'Sign out of Mind Court?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Sign out',
+        style: 'destructive',
+        onPress: async () => {
+          await signOut()
+          router.replace('/sign-in')
+        },
+      },
+    ])
   }
 
   return (
@@ -47,7 +56,7 @@ export default function Profile() {
         <View style={styles.statDivider} />
         <View style={styles.statTile}>
           <Text style={styles.statValue}>{String(lessons.length)}</Text>
-          <Text style={styles.statLabel}>All lessons</Text>
+          <Text style={styles.statLabel}>Scheduled</Text>
         </View>
         <View style={styles.statDivider} />
         <View style={styles.statTile}>
