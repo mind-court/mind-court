@@ -7,6 +7,7 @@ import { Feather } from '@expo/vector-icons'
 import { supabase } from '../../../lib/supabase'
 import { useLessons } from '../../../lib/useLessons'
 import { usePlayers } from '../../../lib/usePlayers'
+import { EditPlayerSheet } from '../../../components/EditPlayerSheet'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { theme, spacing, fontSize, fontWeight, radius, forest, court } from '@mind-court/ui'
 import { avatarColor } from '../../../lib/avatarColor'
@@ -17,7 +18,8 @@ export default function PlayerDetail() {
   const { id } = useLocalSearchParams<{ id: string }>()
   const insets = useSafeAreaInsets()
   const { lessons } = useLessons()
-  const { players, deletePlayer } = usePlayers()
+  const { players, deletePlayer, updatePlayer } = usePlayers()
+  const [showEdit, setShowEdit] = useState(false)
   const [player, setPlayer] = useState<Player | null>(null)
 
   useEffect(() => {
@@ -78,10 +80,15 @@ export default function PlayerDetail() {
     >
       {/* Header */}
       <View style={[styles.hero, { paddingTop: insets.top + spacing[4] }]}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={12}>
-          <Feather name="arrow-left" size={18} color="rgba(255,255,255,0.8)" />
-          <Text style={styles.backText}> Players</Text>
-        </Pressable>
+        <View style={styles.heroTop}>
+          <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={12}>
+            <Feather name="arrow-left" size={18} color="rgba(255,255,255,0.8)" />
+            <Text style={styles.backText}> Players</Text>
+          </Pressable>
+          <Pressable onPress={() => setShowEdit(true)} hitSlop={12}>
+            <Text style={styles.editText}>Edit</Text>
+          </Pressable>
+        </View>
 
         <View style={[styles.avatar, { backgroundColor: avatarColor(player.full_name) }]}>
           <Text style={styles.avatarText}>{initials}</Text>
@@ -143,6 +150,21 @@ export default function PlayerDetail() {
           <Text style={styles.deleteBtnText}>Remove player</Text>
         </Pressable>
       </View>
+      <EditPlayerSheet
+        visible={showEdit}
+        onClose={() => setShowEdit(false)}
+        player={player}
+        onSave={async (updates) => {
+          const result = await updatePlayer(id, {
+            full_name: updates.fullName,
+            is_kid_mode: updates.isKidMode,
+          })
+          if (!result?.error) {
+            setPlayer(prev => prev ? { ...prev, full_name: updates.fullName, is_kid_mode: updates.isKidMode } : prev)
+          }
+          return result
+        }}
+      />
     </ScrollView>
   )
 }
@@ -196,13 +218,19 @@ const styles = StyleSheet.create({
     paddingBottom: spacing[6],
     alignItems: 'center',
   },
-  backBtn: {
-    alignSelf: 'flex-start',
+  heroTop: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
+    alignSelf: 'stretch',
     marginBottom: spacing[4],
   },
+  backBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   backText: { color: 'rgba(255,255,255,0.8)', fontSize: fontSize.sm, fontWeight: fontWeight.medium },
+  editText: { color: 'rgba(255,255,255,0.7)', fontSize: fontSize.sm, fontWeight: fontWeight.medium },
   avatar: {
     width: 64, height: 64, borderRadius: 32,
     justifyContent: 'center', alignItems: 'center',
