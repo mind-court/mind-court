@@ -1,19 +1,34 @@
 import { useState } from 'react'
 import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native'
 import { router } from 'expo-router'
-import { theme, spacing, fontSize, fontWeight, radius } from '@mind-court/ui'
+import { Feather } from '@expo/vector-icons'
+import { theme, spacing, fontSize, fontWeight, radius, forest, court } from '@mind-court/ui'
 import { Screen } from '../../components/Screen'
 import { CreateLessonSheet } from '../../components/CreateLessonSheet'
+import { useAuth } from '../../lib/auth'
 import { useLessons } from '../../lib/useLessons'
 import type { Lesson } from '../../types/db'
 
 export default function CoachToday() {
+  const { profile } = useAuth()
   const { lessons, loading, createLesson } = useLessons()
   const [showCreate, setShowCreate] = useState(false)
 
+  const firstName = profile?.full_name?.split(' ')[0] ?? 'Coach'
+  const hour = new Date().getHours()
+  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
+
   const today = new Date()
-  const todayLessons = lessons
-    .filter(l => isSameDay(new Date(l.scheduled_at), today))
+  const todayLessons = lessons.filter(l => isSameDay(new Date(l.scheduled_at), today))
+  const futureLessons = lessons
+    .filter(l => {
+      const d = new Date(l.scheduled_at)
+      return d > today && !isSameDay(d, today)
+    })
+    .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime())
+  const upcomingLessons = futureLessons.slice(0, 4)
+
+  const hasAnyLessons = todayLessons.length > 0 || upcomingLessons.length > 0
 
   async function handleSave(input: {
     playerName: string
@@ -38,7 +53,7 @@ export default function CoachToday() {
           {today.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
         </Text>
         <View style={styles.headingRow}>
-          <Text style={styles.heading}>Good morning</Text>
+          <Text style={styles.heading}>{greeting}, {firstName}</Text>
           <Pressable
             style={({ pressed }) => [styles.addBtn, pressed && styles.addBtnPressed]}
             onPress={() => setShowCreate(true)}
@@ -48,18 +63,47 @@ export default function CoachToday() {
         </View>
 
         <View style={styles.statsRow}>
-          <StatCard label="Lessons today" value={String(todayLessons.length)} />
-          <StatCard label="Total players" value={String(new Set(lessons.map(l => l.player_name)).size)} />
+          <View style={[styles.statCard, styles.statCardAccent]}>
+            <Text style={styles.statValueAccent}>{todayLessons.length}</Text>
+            <Text style={styles.statLabelAccent}>lessons today</Text>
+            <Text style={styles.statHint}>on court today</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statValue}>{futureLessons.length}</Text>
+            <Text style={styles.statLabel}>upcoming</Text>
+          </View>
         </View>
 
-        <Text style={styles.sectionLabel}>Today's schedule</Text>
-
         {loading ? (
-          <ActivityIndicator color={theme.primary} style={{ marginTop: spacing[4] }} />
-        ) : todayLessons.length === 0 ? (
-          <Text style={styles.empty}>No lessons today. Add one to get started.</Text>
+          <ActivityIndicator color={theme.primary} style={styles.loader} />
+        ) : !hasAnyLessons ? (
+          <View style={styles.emptyState}>
+            <Feather name="calendar" size={40} color={forest[300]} style={styles.emptyIcon} />
+            <Text style={styles.emptyTitle}>Your schedule is clear.</Text>
+            <Text style={styles.emptySub}>Add your first lesson to get started.</Text>
+          </View>
         ) : (
-          todayLessons.map(lesson => <LessonRow key={lesson.id} lesson={lesson} />)
+          <>
+            {todayLessons.length > 0 && (
+              <>
+                <Text style={styles.sectionLabel}>Today's schedule</Text>
+                {todayLessons.map(lesson => (
+                  <LessonRow key={lesson.id} lesson={lesson} />
+                ))}
+              </>
+            )}
+
+            {upcomingLessons.length > 0 && (
+              <>
+                <Text style={todayLessons.length > 0 ? [styles.sectionLabel, styles.sectionLabelSpaced] : styles.sectionLabel}>
+                  Upcoming
+                </Text>
+                {upcomingLessons.map(lesson => (
+                  <LessonRow key={lesson.id} lesson={lesson} muted />
+                ))}
+              </>
+            )}
+          </>
         )}
       </Screen>
 
@@ -72,16 +116,7 @@ export default function CoachToday() {
   )
 }
 
-function StatCard({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.statCard}>
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
-    </View>
-  )
-}
-
-function LessonRow({ lesson }: { lesson: Lesson }) {
+function LessonRow({ lesson, muted = false }: { lesson: Lesson; muted?: boolean }) {
   const time = new Date(lesson.scheduled_at).toLocaleTimeString('en-US', {
     hour: 'numeric', minute: '2-digit',
   })
@@ -90,13 +125,23 @@ function LessonRow({ lesson }: { lesson: Lesson }) {
       style={({ pressed }) => [styles.lessonRow, pressed && styles.lessonRowPressed]}
       onPress={() => router.push(`/coach/session/${lesson.id}`)}
     >
-      <Text style={styles.lessonTime}>{time}</Text>
+      <Text style={muted ? [styles.lessonTime, styles.lessonTimeMuted] : styles.lessonTime}>
+        {time}
+      </Text>
       <View style={styles.lessonInfo}>
         <Text style={styles.lessonPlayer}>{lesson.player_name}</Text>
         {lesson.court ? <Text style={styles.lessonCourt}>{lesson.court}</Text> : null}
         {lesson.mental_cue ? (
-          <Text style={styles.lessonCue}>"{lesson.mental_cue}"</Text>
+          <Text style={styles.lessonCue} numberOfLines={1}>"{lesson.mental_cue}"</Text>
         ) : null}
+      </View>
+      <View style={styles.lessonRight}>
+        {lesson.duration_minutes != null && (
+          <View style={styles.durationBadge}>
+            <Text style={styles.durationBadgeText}>{lesson.duration_minutes}m</Text>
+          </View>
+        )}
+        <Feather name="chevron-right" size={16} color={theme.fgSubtle} />
       </View>
     </Pressable>
   )
@@ -126,10 +171,12 @@ const styles = StyleSheet.create({
     marginBottom: spacing[6],
   },
   heading: {
-    fontSize: fontSize['3xl'],
+    flex: 1,
+    fontSize: fontSize['2xl'],
     fontWeight: fontWeight.bold,
     color: theme.fg,
     letterSpacing: -0.5,
+    marginRight: spacing[3],
   },
   addBtn: {
     backgroundColor: theme.primary,
@@ -156,15 +203,34 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.border,
   },
+  statCardAccent: {
+    backgroundColor: forest[700],
+    borderColor: forest[700],
+  },
   statValue: {
     fontSize: fontSize['2xl'],
     fontWeight: fontWeight.bold,
     color: theme.fg,
   },
+  statValueAccent: {
+    fontSize: fontSize['2xl'],
+    fontWeight: fontWeight.bold,
+    color: '#fff',
+  },
   statLabel: {
     fontSize: fontSize.xs,
     color: theme.fgMuted,
     marginTop: spacing[1],
+  },
+  statLabelAccent: {
+    fontSize: fontSize.xs,
+    color: forest[200],
+    marginTop: spacing[1],
+  },
+  statHint: {
+    fontSize: fontSize.xs,
+    color: forest[300],
+    marginTop: 2,
   },
   sectionLabel: {
     fontSize: fontSize.sm,
@@ -174,10 +240,25 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     marginBottom: spacing[3],
   },
-  empty: {
+  sectionLabelSpaced: {
+    marginTop: spacing[6],
+  },
+  loader: { marginTop: spacing[4] },
+  emptyState: {
+    marginTop: spacing[16],
+    alignItems: 'center',
+  },
+  emptyIcon: { marginBottom: spacing[4] },
+  emptyTitle: {
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.semi,
+    color: theme.fg,
+    marginBottom: spacing[1],
+  },
+  emptySub: {
     fontSize: fontSize.base,
     color: theme.fgMuted,
-    marginTop: spacing[2],
+    textAlign: 'center',
   },
   lessonRow: {
     flexDirection: 'row',
@@ -197,6 +278,10 @@ const styles = StyleSheet.create({
     color: theme.fgMuted,
     width: 70,
     paddingTop: 2,
+    fontVariant: ['tabular-nums'],
+  },
+  lessonTimeMuted: {
+    color: theme.fgFaint,
   },
   lessonInfo: { flex: 1 },
   lessonPlayer: {
@@ -211,8 +296,24 @@ const styles = StyleSheet.create({
   },
   lessonCue: {
     fontSize: fontSize.sm,
-    color: theme.accent,
-    marginTop: spacing[2],
+    color: court[700],
+    marginTop: spacing[1],
     fontStyle: 'italic',
+  },
+  lessonRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+    paddingTop: 2,
+  },
+  durationBadge: {
+    backgroundColor: court[100],
+    borderRadius: radius.pill,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  durationBadgeText: {
+    fontSize: fontSize.xs,
+    color: court[700],
   },
 })
