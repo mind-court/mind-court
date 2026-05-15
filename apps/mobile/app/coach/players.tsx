@@ -1,30 +1,14 @@
 import { useState } from 'react'
 import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native'
 import { Feather } from '@expo/vector-icons'
-import { theme, spacing, fontSize, fontWeight, radius, forest, court, sage } from '@mind-court/ui'
+import { theme, spacing, fontSize, fontWeight, radius, forest, court } from '@mind-court/ui'
 import { Screen } from '../../components/Screen'
 import { usePlayers } from '../../lib/usePlayers'
 import { useLessons } from '../../lib/useLessons'
 import { CreatePlayerSheet } from '../../components/CreatePlayerSheet'
+import { avatarColor } from '../../lib/avatarColor'
+import { formatRelativeDate } from '../../lib/dateUtils'
 import type { Player, Lesson } from '../../types/db'
-
-const AVATAR_COLORS = [forest[500], forest[600], '#6B8CAE', '#7A8E70', '#A0845C', '#7A6B8A', sage[700]]
-
-function avatarColor(name: string): string {
-  let hash = 0
-  for (const c of name) hash = (hash * 31 + c.charCodeAt(0)) & 0xffff
-  return AVATAR_COLORS[hash % AVATAR_COLORS.length]
-}
-
-function formatRelativeDate(date: Date): string {
-  const now = new Date()
-  const diff = now.getTime() - date.getTime()
-  const days = Math.floor(diff / 86400000)
-  if (days === 0) return 'Today'
-  if (days === 1) return 'Yesterday'
-  if (days < 7) return date.toLocaleDateString('en-US', { weekday: 'long' })
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-}
 
 export default function Players() {
   const { players, loading, createPlayer } = usePlayers()

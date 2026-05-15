@@ -6,20 +6,13 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { Feather } from '@expo/vector-icons'
-import { theme, spacing, fontSize, fontWeight, radius, forest, court, sage } from '@mind-court/ui'
+import { theme, spacing, fontSize, fontWeight, radius, forest, court } from '@mind-court/ui'
 import { useConversations } from '../../lib/useConversations'
 import { usePlayers } from '../../lib/usePlayers'
 import { PlayerPickerSheet } from '../../components/PlayerPickerSheet'
+import { avatarColor } from '../../lib/avatarColor'
 import type { Conversation } from '../../lib/useConversations'
 import type { Player } from '../../types/db'
-
-const AVATAR_COLORS = [forest[500], forest[600], '#6B8CAE', '#7A8E70', '#A0845C', '#7A6B8A', sage[700]]
-
-function avatarColor(name: string): string {
-  let hash = 0
-  for (const c of name) hash = (hash * 31 + c.charCodeAt(0)) & 0xffff
-  return AVATAR_COLORS[hash % AVATAR_COLORS.length]
-}
 
 function isRecent(dateStr: string | null): boolean {
   if (!dateStr) return false
@@ -30,6 +23,7 @@ export default function Messages() {
   const { conversations, loading, startConversation } = useConversations()
   const { players } = usePlayers()
   const [showPicker, setShowPicker] = useState(false)
+  const [query, setQuery] = useState('')
   const insets = useSafeAreaInsets()
 
   const sorted = [...conversations].sort((a, b) => {
@@ -39,6 +33,10 @@ export default function Messages() {
     if (!ra && rb) return 1
     return (b.last_message_at ?? '').localeCompare(a.last_message_at ?? '')
   })
+
+  const filtered = query.trim()
+    ? sorted.filter(c => c.player_name.toLowerCase().includes(query.toLowerCase()))
+    : sorted
 
   async function handlePickPlayer(player: Player) {
     const { data, error } = await startConversation(player.full_name, player.id)
@@ -61,10 +59,14 @@ export default function Messages() {
         <View style={styles.searchBar}>
           <Feather name="search" size={16} color={theme.fgFaint} />
           <TextInput
-            editable={false}
             placeholder="Search conversations"
             placeholderTextColor={theme.fgFaint}
+            value={query}
+            onChangeText={setQuery}
             style={styles.searchInput}
+            returnKeyType="search"
+            autoCapitalize="none"
+            autoCorrect={false}
           />
         </View>
 
@@ -76,9 +78,15 @@ export default function Messages() {
             <Text style={styles.emptyTitle}>No messages yet</Text>
             <Text style={styles.emptySub}>Start a conversation with one of your players.</Text>
           </View>
+        ) : filtered.length === 0 ? (
+          <View style={styles.empty}>
+            <Feather name="search" size={32} color={forest[300]} style={styles.emptyIcon} />
+            <Text style={styles.emptyTitle}>No results</Text>
+            <Text style={styles.emptySub}>No conversations matching "{query}".</Text>
+          </View>
         ) : (
           <FlatList
-            data={sorted}
+            data={filtered}
             keyExtractor={c => c.id}
             renderItem={({ item }) => (
               <ConversationRow

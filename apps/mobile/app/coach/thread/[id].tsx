@@ -9,16 +9,11 @@ import { supabase } from '../../../lib/supabase'
 import { useMessages } from '../../../lib/useMessages'
 import { useAuth } from '../../../lib/auth'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { theme, spacing, fontSize, fontWeight, radius, forest, sage } from '@mind-court/ui'
+import { theme, spacing, fontSize, fontWeight, radius, forest } from '@mind-court/ui'
+import { avatarColor } from '../../../lib/avatarColor'
+import { isSameDay } from '../../../lib/dateUtils'
 import type { Conversation } from '../../../lib/useConversations'
 import type { Message } from '../../../lib/useMessages'
-
-const AVATAR_COLORS = [forest[500], forest[600], '#6B8CAE', '#7A8E70', '#A0845C', '#7A6B8A', sage[700]]
-function avatarColor(name: string): string {
-  let hash = 0
-  for (const c of name) hash = (hash * 31 + c.charCodeAt(0)) & 0xffff
-  return AVATAR_COLORS[hash % AVATAR_COLORS.length]
-}
 
 export default function Thread() {
   const { id } = useLocalSearchParams<{ id: string }>()
@@ -166,12 +161,6 @@ function MessageBubble({
       </View>
     </>
   )
-}
-
-function isSameDay(a: Date, b: Date) {
-  return a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate()
 }
 
 const styles = StyleSheet.create({

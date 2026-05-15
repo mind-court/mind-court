@@ -8,6 +8,7 @@ import { CreateLessonSheet } from '../../components/CreateLessonSheet'
 import { useLessons } from '../../lib/useLessons'
 import { usePlayers } from '../../lib/usePlayers'
 import { useAuth } from '../../lib/auth'
+import { isSameDay } from '../../lib/dateUtils'
 import type { Lesson } from '../../types/db'
 
 export default function CoachToday() {
@@ -40,6 +41,7 @@ export default function CoachToday() {
     playerId?: string
     date: Date
     court: string
+    duration: string
     drills: string
     mentalCue: string
   }) {
@@ -48,6 +50,7 @@ export default function CoachToday() {
       playerId: input.playerId,
       scheduledAt: input.date,
       court: input.court,
+      durationMinutes: input.duration ? parseInt(input.duration, 10) : null,
       drills: input.drills,
       mentalCue: input.mentalCue,
     })
@@ -144,14 +147,6 @@ function LessonRow({ lesson }: { lesson: Lesson }) {
         <Feather name="chevron-right" size={16} color={theme.fgFaint} />
       </View>
     </Pressable>
-  )
-}
-
-function isSameDay(a: Date, b: Date) {
-  return (
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate()
   )
 }
 

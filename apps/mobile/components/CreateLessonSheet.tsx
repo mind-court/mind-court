@@ -11,15 +11,9 @@ import {
 } from 'react-native'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import { BottomSheet } from './BottomSheet'
-import { theme, spacing, fontSize, fontWeight, radius, forest, sage } from '@mind-court/ui'
+import { theme, spacing, fontSize, fontWeight, radius } from '@mind-court/ui'
+import { avatarColor } from '../lib/avatarColor'
 import type { Player } from '../types/db'
-
-const AVATAR_COLORS = [forest[500], forest[600], '#6B8CAE', '#7A8E70', '#A0845C', '#7A6B8A', sage[700]]
-function avatarColor(name: string): string {
-  let hash = 0
-  for (const c of name) hash = (hash * 31 + c.charCodeAt(0)) & 0xffff
-  return AVATAR_COLORS[hash % AVATAR_COLORS.length]
-}
 
 export type LessonInput = {
   playerName: string

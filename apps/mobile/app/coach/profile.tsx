@@ -1,6 +1,5 @@
 import { ScrollView, View, Text, Pressable, StyleSheet } from 'react-native'
 import { router } from 'expo-router'
-import { Feather } from '@expo/vector-icons'
 import { useAuth } from '../../lib/auth'
 import { useLessons } from '../../lib/useLessons'
 import { usePlayers } from '../../lib/usePlayers'
