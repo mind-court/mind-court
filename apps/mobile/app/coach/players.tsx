@@ -33,7 +33,7 @@ export default function Players() {
         </View>
 
         {loading ? (
-          <ActivityIndicator color={theme.primary} style={{ marginTop: spacing[8] }} />
+          <ActivityIndicator color={theme.primary} style={styles.loader} />
         ) : players.length === 0 ? (
           <View style={styles.emptyState}>
             <Feather name="users" size={40} color={forest[300]} style={styles.emptyIcon} />
@@ -85,6 +85,7 @@ function PlayerCard({ player, lessons }: { player: Player; lessons: Lesson[] }) 
     (a, b) => new Date(b.scheduled_at).getTime() - new Date(a.scheduled_at).getTime()
   )[0]
   const lastDate = lastLesson ? formatRelativeDate(new Date(lastLesson.scheduled_at)) : null
+
   const memberSince = new Date(player.created_at).toLocaleDateString('en-US', {
     month: 'long',
     year: 'numeric',
@@ -161,6 +162,7 @@ const styles = StyleSheet.create({
   kidSectionLabel: {
     marginTop: spacing[6],
   },
+  loader: { marginTop: spacing[8] },
   emptyState: {
     marginTop: spacing[16],
     alignItems: 'center',
@@ -223,8 +225,7 @@ const styles = StyleSheet.create({
     color: theme.fgSubtle,
   },
   kidBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: theme.accentHover,
+    backgroundColor: court[100],
     borderRadius: radius.pill,
     paddingHorizontal: spacing[2],
     paddingVertical: 2,
@@ -232,7 +233,7 @@ const styles = StyleSheet.create({
   kidBadgeText: {
     fontSize: fontSize.xs,
     fontWeight: fontWeight.semi,
-    color: theme.fgOnAccent,
+    color: court[700],
   },
   cardRight: {
     flexDirection: 'row',

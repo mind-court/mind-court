@@ -151,6 +151,9 @@ export default function PlayerDetail() {
         </View>
       </View>
 
+      {/* Profile */}
+      <ProfileSection player={player} />
+
       {/* Lesson history */}
       <View style={styles.section}>
         <Text style={styles.sectionLabel}>Lesson history</Text>
@@ -177,19 +180,121 @@ export default function PlayerDetail() {
         visible={showEdit}
         onClose={() => setShowEdit(false)}
         player={player}
-        onSave={async (updates) => {
-          const result = await updatePlayer(id, {
-            full_name: updates.fullName,
-            is_kid_mode: updates.isKidMode,
-          })
+        onSave={async (input) => {
+          const result = await updatePlayer(id, input)
           if (!result?.error) {
-            setPlayer(prev => prev ? { ...prev, full_name: updates.fullName, is_kid_mode: updates.isKidMode } : prev)
+            setPlayer(prev => prev ? {
+              ...prev,
+              full_name: input.fullName,
+              is_kid_mode: input.isKidMode,
+              skill_level: input.skillLevel?.trim() || null,
+              contact_phone: input.contactPhone?.trim() || null,
+              contact_email: input.contactEmail?.trim() || null,
+              birthdate: input.birthdate?.trim() || null,
+              lesson_cadence: input.lessonCadence?.trim() || null,
+              primary_focus: input.primaryFocus?.trim() || null,
+              intake_notes: input.intakeNotes?.trim() || null,
+              parent_name: input.parentName?.trim() || null,
+              parent_phone: input.parentPhone?.trim() || null,
+            } : prev)
           }
           return result
         }}
       />
     </ScrollView>
   )
+}
+
+function ProfileSection({ player }: { player: Player }) {
+  const facts: { label: string; value: string }[] = []
+  if (player.skill_level) facts.push({ label: 'Skill level', value: player.skill_level })
+  if (player.birthdate) {
+    const age = ageFromBirthdate(player.birthdate)
+    const formatted = formatBirthdate(player.birthdate)
+    facts.push({ label: 'Birthdate', value: age != null ? `${formatted} · ${age}` : formatted })
+  }
+  if (player.lesson_cadence) facts.push({ label: 'Cadence', value: player.lesson_cadence })
+  if (player.primary_focus) facts.push({ label: 'Focus', value: player.primary_focus })
+
+  const hasContact = player.contact_phone || player.contact_email
+  const hasParent = player.is_kid_mode && (player.parent_name || player.parent_phone)
+  const hasNotes = !!player.intake_notes
+  const hasAnything = facts.length > 0 || hasContact || hasParent || hasNotes
+
+  if (!hasAnything) return null
+
+  return (
+    <View style={styles.profileWrap}>
+      <Text style={styles.sectionLabel}>Profile</Text>
+
+      {facts.length > 0 && (
+        <View style={styles.factGrid}>
+          {facts.map(f => (
+            <View key={f.label} style={styles.factTile}>
+              <Text style={styles.factLabel}>{f.label}</Text>
+              <Text style={styles.factValue} numberOfLines={2}>{f.value}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+
+      {hasContact && (
+        <View style={styles.contactRow}>
+          {player.contact_phone && (
+            <View style={styles.contactItem}>
+              <Feather name="phone" size={14} color={theme.fgSubtle} />
+              <Text style={styles.contactText}>{player.contact_phone}</Text>
+            </View>
+          )}
+          {player.contact_email && (
+            <View style={styles.contactItem}>
+              <Feather name="mail" size={14} color={theme.fgSubtle} />
+              <Text style={styles.contactText} numberOfLines={1}>{player.contact_email}</Text>
+            </View>
+          )}
+        </View>
+      )}
+
+      {hasParent && (
+        <View style={styles.parentCard}>
+          <View style={styles.parentHeader}>
+            <Feather name="users" size={13} color={court[700]} />
+            <Text style={styles.parentTitle}>Parent contact</Text>
+          </View>
+          {player.parent_name && <Text style={styles.parentName}>{player.parent_name}</Text>}
+          {player.parent_phone && (
+            <View style={styles.contactItem}>
+              <Feather name="phone" size={13} color={court[700]} />
+              <Text style={[styles.contactText, { color: court[700] }]}>{player.parent_phone}</Text>
+            </View>
+          )}
+        </View>
+      )}
+
+      {hasNotes && (
+        <View style={styles.notesCard}>
+          <Text style={styles.notesLabel}>Intake notes</Text>
+          <Text style={styles.notesText}>{player.intake_notes}</Text>
+        </View>
+      )}
+    </View>
+  )
+}
+
+function ageFromBirthdate(birthdate: string): number | null {
+  const d = new Date(birthdate)
+  if (Number.isNaN(d.getTime())) return null
+  const now = new Date()
+  let age = now.getFullYear() - d.getFullYear()
+  const monthDiff = now.getMonth() - d.getMonth()
+  if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < d.getDate())) age--
+  return age >= 0 && age < 130 ? age : null
+}
+
+function formatBirthdate(birthdate: string): string {
+  const d = new Date(birthdate)
+  if (Number.isNaN(d.getTime())) return birthdate
+  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
 }
 
 function LessonHistoryRow({ lesson }: { lesson: Lesson }) {
@@ -313,6 +418,85 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase', letterSpacing: 1.2,
   },
   statDivider: { width: 1, height: 40, backgroundColor: theme.borderSubtle, alignSelf: 'center' },
+
+  profileWrap: {
+    paddingHorizontal: spacing[5],
+    paddingTop: spacing[5],
+    gap: spacing[3],
+  },
+  factGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing[2],
+  },
+  factTile: {
+    flexBasis: '48%',
+    flexGrow: 1,
+    backgroundColor: theme.bgElevated,
+    borderWidth: 1,
+    borderColor: theme.border,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing[3],
+    paddingVertical: spacing[2],
+    gap: 2,
+  },
+  factLabel: {
+    fontSize: 10,
+    fontWeight: fontWeight.semi,
+    color: theme.fgSubtle,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+  },
+  factValue: { fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: theme.fg },
+
+  contactRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing[3],
+    backgroundColor: theme.bgElevated,
+    borderWidth: 1,
+    borderColor: theme.border,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing[3],
+    paddingVertical: spacing[3],
+  },
+  contactItem: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 },
+  contactText: { fontSize: fontSize.sm, color: theme.fg },
+
+  parentCard: {
+    backgroundColor: court[100],
+    borderWidth: 1,
+    borderColor: court[200],
+    borderRadius: radius.md,
+    padding: spacing[3],
+    gap: 4,
+  },
+  parentHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  parentTitle: {
+    fontSize: 10,
+    fontWeight: fontWeight.bold,
+    color: court[700],
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+  },
+  parentName: { fontSize: fontSize.sm, fontWeight: fontWeight.semi, color: theme.fg },
+
+  notesCard: {
+    backgroundColor: theme.bgElevated,
+    borderWidth: 1,
+    borderColor: theme.border,
+    borderRadius: radius.md,
+    padding: spacing[3],
+    gap: 4,
+  },
+  notesLabel: {
+    fontSize: 10,
+    fontWeight: fontWeight.semi,
+    color: theme.fgSubtle,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+  },
+  notesText: { fontSize: fontSize.sm, color: theme.fg, lineHeight: 19 },
 
   section: { padding: spacing[5], gap: spacing[2] },
   sectionLabel: {
