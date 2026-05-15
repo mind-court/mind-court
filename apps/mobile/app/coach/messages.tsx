@@ -150,7 +150,7 @@ const styles = StyleSheet.create({
   },
   addBtnPressed: { backgroundColor: theme.primaryPress },
   addBtnText: { fontSize: fontSize.sm, fontWeight: fontWeight.semi, color: '#fff' },
-  list: { paddingHorizontal: spacing[4] },
+  list: { paddingHorizontal: spacing[4], paddingBottom: spacing[16] },
   empty: {
     flex: 1,
     justifyContent: 'center',

@@ -14,7 +14,8 @@ export function Screen({ children, scroll = true, style, contentStyle, ...rest }
 
   const pad = {
     paddingTop: insets.top + spacing[4],
-    paddingBottom: insets.bottom + spacing[6],
+    // Add bottom inset + tab bar height (React Navigation tab bar is ~49px + home indicator)
+    paddingBottom: insets.bottom + spacing[16],
     paddingHorizontal: spacing[4],
   }
 

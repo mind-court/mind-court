@@ -20,14 +20,14 @@ export default function CoachLayout() {
         tabBarStyle: {
           backgroundColor: theme.bgElevated,
           borderTopColor: theme.border,
-          height: 60,
-          paddingBottom: 8,
-          paddingTop: 6,
+          borderTopWidth: 1,
+        },
+        tabBarItemStyle: {
+          paddingVertical: 4,
         },
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: '500',
-          marginTop: 2,
         },
       }}
     >
