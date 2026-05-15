@@ -180,7 +180,7 @@ export default function Session() {
 
         {drills.length === 0 && !lesson.mental_cue && (
           <View style={styles.emptySession}>
-            <Text style={styles.emptyText}>No drills or mental cue set for this lesson.</Text>
+            <Text style={styles.emptyText}>Nothing planned yet — free to run it your way.</Text>
           </View>
         )}
 

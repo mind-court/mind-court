@@ -85,7 +85,7 @@ export default function CoachToday() {
           <View style={styles.emptyState}>
             <Feather name="calendar" size={40} color={forest[300]} style={styles.emptyIcon} />
             <Text style={styles.emptyTitle}>Your schedule is clear.</Text>
-            <Text style={styles.emptySub}>Add your first lesson to get started.</Text>
+            <Text style={styles.emptySub}>Tap + Add lesson to put your first session on the books.</Text>
           </View>
         ) : todayLessons.length === 0 ? (
           <Text style={styles.empty}>No lessons today.</Text>
