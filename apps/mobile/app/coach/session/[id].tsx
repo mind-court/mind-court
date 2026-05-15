@@ -59,6 +59,13 @@ export default function Session() {
     await supabase.from('lessons').update({ notes: value }).eq('id', lesson.id)
   }, [lesson])
 
+  async function handleFinish() {
+    if (!lesson || elapsed === 0) return
+    const minutes = Math.max(1, Math.round(elapsed / 60))
+    await supabase.from('lessons').update({ duration_minutes: minutes }).eq('id', lesson.id)
+    router.back()
+  }
+
   function handleDelete() {
     Alert.alert(
       'Delete lesson',
@@ -204,6 +211,16 @@ export default function Session() {
         )}
 
         <View style={styles.footer}>
+          {elapsed > 0 && (
+            <Pressable
+              style={({ pressed }) => [styles.finishBtn, pressed && styles.finishBtnPressed]}
+              onPress={handleFinish}
+            >
+              <Text style={styles.finishBtnText}>
+                Finish session · {Math.max(1, Math.round(elapsed / 60))} min
+              </Text>
+            </Pressable>
+          )}
           <Pressable
             style={({ pressed }) => [styles.deleteBtn, pressed && styles.deleteBtnPressed]}
             onPress={handleDelete}
@@ -411,6 +428,21 @@ const styles = StyleSheet.create({
     padding: spacing[5],
     paddingTop: spacing[8],
     alignItems: 'center',
+    gap: spacing[4],
+  },
+  finishBtn: {
+    backgroundColor: court[500],
+    borderRadius: radius.md,
+    paddingVertical: spacing[4],
+    paddingHorizontal: spacing[8],
+    alignItems: 'center',
+    alignSelf: 'stretch',
+  },
+  finishBtnPressed: { backgroundColor: court[400] },
+  finishBtnText: {
+    fontSize: fontSize.base,
+    fontWeight: fontWeight.semi,
+    color: forest[900],
   },
   deleteBtn: {
     paddingVertical: spacing[2],

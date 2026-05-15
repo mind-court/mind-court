@@ -69,7 +69,7 @@ export function useLessons() {
 
   async function updateLesson(
     id: string,
-    updates: Partial<Pick<Lesson, 'notes' | 'drills' | 'mental_cue' | 'duration_minutes'>>,
+    updates: Partial<Pick<Lesson, 'notes' | 'drills' | 'mental_cue' | 'duration_minutes' | 'court' | 'scheduled_at'>>,
   ) {
     const { error } = await supabase.from('lessons').update(updates).eq('id', id)
     if (!error) setLessons(prev => prev.map(l => l.id === id ? { ...l, ...updates } : l))
