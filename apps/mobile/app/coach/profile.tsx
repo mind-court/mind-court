@@ -1,4 +1,4 @@
-import { Text, Pressable, StyleSheet } from 'react-native'
+import { View, Text, Pressable, StyleSheet } from 'react-native'
 import { router } from 'expo-router'
 import { useAuth } from '../../lib/auth'
 import { Screen } from '../../components/Screen'
