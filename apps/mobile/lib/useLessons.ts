@@ -46,7 +46,7 @@ export function useLessons() {
     durationMinutes?: number | null
     drills: string
     mentalCue: string
-  }) {
+  }): Promise<{ error: string | null } | undefined> {
     if (!user) return
     const { data, error } = await supabase
       .from('lessons')
