@@ -4,6 +4,19 @@ import { useAuth } from './auth'
 import { useRefreshOnForeground } from './useRefreshOnForeground'
 import type { Conversation } from '../types/db'
 
+export function isUnread(c: Conversation): boolean {
+  if (!c.last_message_at) return false
+  if (!c.last_read_at) return true
+  return new Date(c.last_message_at).getTime() > new Date(c.last_read_at).getTime()
+}
+
+export async function markConversationRead(conversationId: string) {
+  await supabase
+    .from('conversations')
+    .update({ last_read_at: new Date().toISOString() })
+    .eq('id', conversationId)
+}
+
 export function useConversations() {
   const { user } = useAuth()
   const instanceId = useId()
@@ -41,7 +54,6 @@ export function useConversations() {
   async function startConversation(playerName: string, playerId?: string) {
     if (!user) return { data: null, error: 'Not signed in' }
 
-    // Reuse existing conversation if one exists for this player
     const existing = conversations.find(c =>
       playerId ? c.player_id === playerId : c.player_name === playerName
     )
@@ -58,18 +70,18 @@ export function useConversations() {
       return { data, error: null }
     }
 
-    // Unique constraint violation — row already exists, fetch it
+    // Unique constraint violation — fetch the row that already exists.
     if (playerId) {
-      const { data: existing } = await supabase
+      const { data: existingRow } = await supabase
         .from('conversations')
         .select('*')
         .eq('coach_id', user.id)
         .eq('player_id', playerId)
         .single()
-      if (existing) return { data: existing, error: null }
+      if (existingRow) return { data: existingRow, error: null }
     }
 
-    return { data: null, error: error?.message ?? null }
+    return { data: null, error: error?.message ?? 'Could not start conversation' }
   }
 
   return { conversations, loading, startConversation, refresh: fetch }
