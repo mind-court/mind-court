@@ -1,6 +1,6 @@
-# Mind Court
+![Mind Court](./.github/banner.svg)
 
-Tennis coaching and mental game app — built for coaches and the players they work with.
+Tennis coaching and the mental game — for the coaches who run practices and the players who play matches.
 
 Mind Court is in active development. This repository is public for transparency; the code is not open-source (see [LICENSE](./LICENSE)).
 
@@ -40,6 +40,6 @@ Related repos in the [Mind Court org](https://github.com/mind-court):
 
 Pre-launch. The coach side is the current focus; the player side follows.
 
-## Contact
+—
 
-Questions, licensing, or partnership: **bensmith0124@gmail.com**
+Questions, licensing, partnership: [bensmith0124@gmail.com](mailto:bensmith0124@gmail.com)
