@@ -5,7 +5,7 @@ import {
 } from 'react-native'
 import { router } from 'expo-router'
 import { useAuth } from '../lib/auth'
-import { theme, spacing, fontSize, fontWeight, radius } from '@mind-court/ui'
+import { Logo, theme, spacing, fontSize, fontWeight, radius, court } from '@mind-court/ui'
 
 export default function SignIn() {
   const { signIn, signUp } = useAuth()
@@ -41,7 +41,10 @@ export default function SignIn() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <Text style={styles.logo}>Mind Court</Text>
+        <View style={styles.brand}>
+          <Logo height={44} variant="dark" />
+          <View style={styles.accentBar} />
+        </View>
         <Text style={styles.tagline}>
           {mode === 'signin' ? 'Welcome back, coach.' : 'Build your roster and plan every session.'}
         </Text>
@@ -112,12 +115,16 @@ const styles = StyleSheet.create({
     padding: spacing[6],
     gap: spacing[3],
   },
-  logo: {
-    fontSize: fontSize['3xl'],
-    fontWeight: fontWeight.bold,
-    color: theme.primary,
-    marginBottom: spacing[1],
-    letterSpacing: -0.5,
+  brand: {
+    marginBottom: spacing[2],
+    alignItems: 'flex-start',
+  },
+  accentBar: {
+    width: 40,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: court[500],
+    marginTop: spacing[3],
   },
   tagline: {
     fontSize: fontSize.base,
