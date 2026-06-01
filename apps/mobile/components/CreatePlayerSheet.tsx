@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   View, Text, TextInput, Pressable, StyleSheet, ActivityIndicator, ScrollView, Platform, Modal,
 } from 'react-native'
@@ -57,7 +57,7 @@ export function CreatePlayerSheet({ visible, onClose, onSave }: Props) {
   // Step 1 needs: name, adult/kid choice, and (if kid) parent contact.
   const nameOk = fullName.trim().length > 0
   const kidContactOk = isKidMode !== true
-    || (parentName.trim().length > 0 && parentPhone.trim().length > 0)
+    || (parentName.trim().length > 0 && isValidPhone(parentPhone))
   const step1Ok = nameOk && isKidMode !== null && kidContactOk
   const canContinue = (step === 1 && step1Ok) || step === 2
 
@@ -72,6 +72,10 @@ export function CreatePlayerSheet({ visible, onClose, onSave }: Props) {
 
   async function save() {
     if (loading) return
+    if (contactPhone.trim() && !isValidPhone(contactPhone)) {
+      setError('That phone number looks incomplete — enter a full number or leave it blank.')
+      return
+    }
     setLoading(true)
     setError('')
     const result = await onSave({
@@ -281,8 +285,9 @@ function Step1({
               placeholder="(555) 123-4567"
               placeholderTextColor={theme.fgFaint}
               value={parentPhone}
-              onChangeText={setParentPhone}
+              onChangeText={(v) => setParentPhone(sanitizePhone(v))}
               keyboardType="phone-pad"
+              maxLength={20}
             />
           </BigField>
           <BigField label="Kid's phone (optional)">
@@ -291,8 +296,9 @@ function Step1({
               placeholder="If they have one"
               placeholderTextColor={theme.fgFaint}
               value={contactPhone}
-              onChangeText={setContactPhone}
+              onChangeText={(v) => setContactPhone(sanitizePhone(v))}
               keyboardType="phone-pad"
+              maxLength={20}
             />
           </BigField>
         </>
@@ -309,8 +315,9 @@ function Step1({
               placeholder="(555) 123-4567"
               placeholderTextColor={theme.fgFaint}
               value={contactPhone}
-              onChangeText={setContactPhone}
+              onChangeText={(v) => setContactPhone(sanitizePhone(v))}
               keyboardType="phone-pad"
+              maxLength={20}
             />
           </BigField>
           <BigField label="Email">
@@ -434,6 +441,13 @@ function BirthdayPicker({
 }) {
   const [draft, setDraft] = useState<Date>(value ?? defaultBirthday())
 
+  // The picker stays mounted, so useState only seeds `draft` once. Re-sync it
+  // to the current value each time the picker opens — otherwise the spinner
+  // shows a stale date (and on first open never reflects a cleared value).
+  useEffect(() => {
+    if (visible) setDraft(value ?? defaultBirthday())
+  }, [visible, value])
+
   function handleIOSDone() {
     onChange(draft)
     onClose()
@@ -545,6 +559,17 @@ function Segment({
 
 function firstNameOf(full: string): string {
   return full.trim().split(/\s+/)[0] ?? ''
+}
+
+// Keep phone inputs to digits and common formatting chars, capped in length —
+// stops free-text like "32" from looking like a complete entry.
+function sanitizePhone(v: string): string {
+  return v.replace(/[^\d\s()+\-.]/g, '').slice(0, 20)
+}
+
+function isValidPhone(v: string): boolean {
+  const digits = v.replace(/\D/g, '').length
+  return digits >= 7 && digits <= 15
 }
 
 function toISODate(d: Date): string {
