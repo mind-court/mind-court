@@ -362,8 +362,17 @@ function ProfileSection({ player }: { player: Player }) {
   )
 }
 
+// Parse a YYYY-MM-DD string as a *local* date. `new Date('YYYY-MM-DD')` parses
+// as UTC midnight, which renders as the previous day for users west of UTC —
+// that's what turned a saved 12/12 birthday into 12/11.
+function parseBirthdateLocal(birthdate: string): Date {
+  const [y, m, d] = birthdate.split('-').map(Number)
+  if (!y || !m || !d) return new Date(birthdate)
+  return new Date(y, m - 1, d)
+}
+
 function ageFromBirthdate(birthdate: string): number | null {
-  const d = new Date(birthdate)
+  const d = parseBirthdateLocal(birthdate)
   if (Number.isNaN(d.getTime())) return null
   const now = new Date()
   let age = now.getFullYear() - d.getFullYear()
@@ -373,7 +382,7 @@ function ageFromBirthdate(birthdate: string): number | null {
 }
 
 function formatBirthdate(birthdate: string): string {
-  const d = new Date(birthdate)
+  const d = parseBirthdateLocal(birthdate)
   if (Number.isNaN(d.getTime())) return birthdate
   return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
 }
