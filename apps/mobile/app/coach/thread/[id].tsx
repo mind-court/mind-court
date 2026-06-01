@@ -131,7 +131,16 @@ export default function Thread() {
           value={text}
           onChangeText={setText}
           multiline
-          returnKeyType="default"
+          returnKeyType="send"
+          onKeyPress={(e) => {
+            // Send on Enter (without Shift) from hardware/web keyboards.
+            // Soft-keyboard newlines still work via multiline.
+            const ne = e.nativeEvent as { key?: string; shiftKey?: boolean }
+            if (ne.key === 'Enter' && !ne.shiftKey) {
+              ;(e as unknown as { preventDefault?: () => void }).preventDefault?.()
+              handleSend()
+            }
+          }}
         />
         <Pressable
           style={({ pressed }) => [
@@ -345,5 +354,7 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   sendBtnPressed: { backgroundColor: theme.primaryPress },
-  sendBtnDisabled: { opacity: 0.35 },
+  // Keep the button clearly visible when empty — a faint (0.35) green circle
+  // read as "no send button" to testers. Muted gray says "present but inactive".
+  sendBtnDisabled: { backgroundColor: theme.fgMuted },
 })
