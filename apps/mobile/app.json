@@ -14,7 +14,13 @@
       "backgroundColor": "#1B3A2D"
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "bundler": "metro",
+      "favicon": "./assets/favicon.png",
+      "name": "Mind Court",
+      "shortName": "Mind Court",
+      "themeColor": "#1B3A2D",
+      "backgroundColor": "#1B3A2D",
+      "display": "standalone"
     },
     "ios": {
       "supportsTablet": false,
