@@ -195,9 +195,7 @@ export function EditPlayerSheet({ visible, onClose, player, onSave }: Props) {
                   <Text style={styles.kidTitle}>Kid Mode</Text>
                 </View>
                 <Text style={styles.kidBlurb}>
-                  Turn on for players under ~13. Their app switches to a kid-friendly view: bigger
-                  taps, simpler language, short visual drills, and reminders sent to a parent
-                  instead of the player.
+                  Turn on for players under ~13 so you keep a parent contact on file.
                 </Text>
               </View>
               <Switch
