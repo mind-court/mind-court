@@ -1,4 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react'
+import { Platform } from 'react-native'
+import * as Linking from 'expo-linking'
 import { Session, User } from '@supabase/supabase-js'
 import { supabase } from './supabase'
 import type { Profile } from '../types/db'
@@ -10,6 +12,7 @@ type AuthContext = {
   loading: boolean
   signIn: (email: string, password: string) => Promise<{ error: string | null }>
   signUp: (email: string, password: string, fullName: string) => Promise<{ error: string | null; needsVerification?: boolean }>
+  sendPasswordReset: (email: string) => Promise<{ error: string | null }>
   signOut: () => Promise<void>
   signOutEverywhere: () => Promise<{ error: string | null }>
   updateProfile: (updates: Partial<Pick<Profile, 'full_name'>>) => Promise<{ error: string | null }>
@@ -69,6 +72,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  async function sendPasswordReset(email: string) {
+    const redirectTo = Platform.OS === 'web'
+      ? `${window.location.origin}/reset-password`
+      : Linking.createURL('/reset-password')
+    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo })
+    return { error: error?.message ?? null }
+  }
+
   async function signOut() {
     await supabase.auth.signOut()
   }
@@ -108,6 +119,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       loading,
       signIn,
       signUp,
+      sendPasswordReset,
       signOut,
       signOutEverywhere,
       updateProfile,

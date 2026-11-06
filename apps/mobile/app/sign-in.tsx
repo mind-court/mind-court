@@ -8,8 +8,8 @@ import { useAuth } from '../lib/auth'
 import { Logo, theme, spacing, fontSize, fontWeight, radius, court } from '@mind-court/ui'
 
 export default function SignIn() {
-  const { signIn, signUp } = useAuth()
-  const [mode, setMode] = useState<'signin' | 'signup'>('signin')
+  const { signIn, signUp, sendPasswordReset } = useAuth()
+  const [mode, setMode] = useState<'signin' | 'signup' | 'forgot'>('signin')
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -20,6 +20,23 @@ export default function SignIn() {
   async function handleSubmit() {
     setError('')
     setInfo('')
+    if (mode === 'forgot') {
+      const address = email.trim()
+      if (!address) {
+        setError('Enter your email address.')
+        return
+      }
+      setLoading(true)
+      const { error: resetError } = await sendPasswordReset(address)
+      setLoading(false)
+      if (resetError) {
+        setError(resetError)
+      } else {
+        setInfo('If that email has an account, a reset link is on its way.')
+        setMode('signin')
+      }
+      return
+    }
     setLoading(true)
     const result = mode === 'signin'
       ? await signIn(email, password)
@@ -33,6 +50,12 @@ export default function SignIn() {
     } else {
       router.replace('/coach')
     }
+  }
+
+  function switchMode(next: typeof mode) {
+    setMode(next)
+    setError('')
+    setInfo('')
   }
 
   return (
@@ -51,7 +74,9 @@ export default function SignIn() {
           <View style={styles.accentBar} />
         </View>
         <Text style={styles.tagline}>
-          {mode === 'signin' ? 'Welcome back, coach.' : 'Build your roster and plan every session.'}
+          {mode === 'signin' && 'Welcome back, coach.'}
+          {mode === 'signup' && 'Build your roster and plan every session.'}
+          {mode === 'forgot' && "Enter your email and we'll send a reset link."}
         </Text>
 
         {mode === 'signup' && (
@@ -74,19 +99,22 @@ export default function SignIn() {
           onChangeText={setEmail}
           autoCapitalize="none"
           keyboardType="email-address"
-          returnKeyType="next"
+          returnKeyType={mode === 'forgot' ? 'done' : 'next'}
+          onSubmitEditing={mode === 'forgot' ? handleSubmit : undefined}
         />
 
-        <TextInput
-          style={styles.input}
-          placeholder="Password"
-          placeholderTextColor={theme.fgFaint}
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-          returnKeyType="done"
-          onSubmitEditing={handleSubmit}
-        />
+        {mode !== 'forgot' && (
+          <TextInput
+            style={styles.input}
+            placeholder="Password"
+            placeholderTextColor={theme.fgFaint}
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            returnKeyType="done"
+            onSubmitEditing={handleSubmit}
+          />
+        )}
 
         {info ? <Text style={styles.info}>{info}</Text> : null}
         {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -98,13 +126,21 @@ export default function SignIn() {
         >
           {loading
             ? <ActivityIndicator color="#fff" />
-            : <Text style={styles.btnText}>{mode === 'signin' ? 'Sign in' : 'Create account'}</Text>
+            : <Text style={styles.btnText}>
+                {mode === 'signin' ? 'Sign in' : mode === 'signup' ? 'Create account' : 'Send reset link'}
+              </Text>
           }
         </Pressable>
 
-        <Pressable onPress={() => { setMode(mode === 'signin' ? 'signup' : 'signin'); setError(''); setInfo('') }} style={styles.toggle}>
+        {mode === 'signin' && (
+          <Pressable onPress={() => switchMode('forgot')} style={styles.toggle}>
+            <Text style={styles.toggleText}>Forgot password?</Text>
+          </Pressable>
+        )}
+
+        <Pressable onPress={() => switchMode(mode === 'signin' ? 'signup' : 'signin')} style={styles.toggle}>
           <Text style={styles.toggleText}>
-            {mode === 'signin' ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
+            {mode === 'signin' ? "Don't have an account? Sign up" : 'Back to sign in'}
           </Text>
         </Pressable>
       </ScrollView>
