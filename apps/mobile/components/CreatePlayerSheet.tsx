@@ -267,7 +267,7 @@ function Step1({
           <View style={styles.divider} />
           <Question
             title={firstName ? `${firstName}'s parent contact` : "Parent contact"}
-            sub="Required for kids — we send schedule and reminder messages here."
+            sub="Required for kids — so you can reach a parent about lessons."
           />
           <BigField label="Parent or guardian name">
             <TextInput

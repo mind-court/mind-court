@@ -11,7 +11,6 @@ import { CreateLessonSheet } from '../../../components/CreateLessonSheet'
 import { useAuth } from '../../../lib/auth'
 import { useLessons } from '../../../lib/useLessons'
 import { usePlayers } from '../../../lib/usePlayers'
-import { useConversations, isUnread } from '../../../lib/useConversations'
 import { isSameDay } from '../../../lib/dateUtils'
 import type { Lesson } from '../../../types/db'
 
@@ -19,7 +18,6 @@ export default function Today() {
   const { profile } = useAuth()
   const { lessons, loading: lessonsLoading, createLesson } = useLessons()
   const { players } = usePlayers()
-  const { conversations } = useConversations()
   const [showCreate, setShowCreate] = useState(false)
   const [now, setNow] = useState(() => new Date())
 
@@ -48,7 +46,6 @@ export default function Today() {
 
   const remainingToday = todaysLessons.filter(l => new Date(l.scheduled_at) > now)
   const doneToday = todaysLessons.length - remainingToday.length
-  const unreadCount = conversations.filter(isUnread).length
 
   async function handleCreate(input: {
     playerName: string
@@ -130,12 +127,6 @@ export default function Today() {
             label="Players"
             value={players.length}
             onPress={() => router.push('/coach/players')}
-          />
-          <StatTile
-            label="Unread"
-            value={unreadCount}
-            highlight={unreadCount > 0}
-            onPress={() => router.push('/coach/messages')}
           />
           <StatTile
             label="Today"

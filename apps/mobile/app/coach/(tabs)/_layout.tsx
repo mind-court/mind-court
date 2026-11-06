@@ -1,7 +1,6 @@
 import { Tabs } from 'expo-router'
 import { Feather } from '@expo/vector-icons'
 import { theme } from '@mind-court/ui'
-import { useConversations, isUnread } from '../../../lib/useConversations'
 
 type FeatherName = React.ComponentProps<typeof Feather>['name']
 
@@ -12,9 +11,6 @@ function icon(name: FeatherName) {
 }
 
 export default function CoachTabsLayout() {
-  const { conversations } = useConversations()
-  const unreadCount = conversations.filter(isUnread).length
-
   return (
     <Tabs
       screenOptions={{
@@ -49,11 +45,8 @@ export default function CoachTabsLayout() {
       />
       <Tabs.Screen
         name="messages"
-        options={{
-          title: 'Messages',
-          tabBarIcon: icon('message-circle'),
-          tabBarBadge: unreadCount > 0 ? unreadCount : undefined,
-        }}
+        // Hidden for the coaches-only test: players have no login, so messages reach no one.
+        options={{ href: null }}
       />
       <Tabs.Screen
         name="profile"

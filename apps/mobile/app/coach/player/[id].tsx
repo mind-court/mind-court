@@ -7,7 +7,6 @@ import { Feather } from '@expo/vector-icons'
 import { supabase } from '../../../lib/supabase'
 import { useLessons } from '../../../lib/useLessons'
 import { usePlayers } from '../../../lib/usePlayers'
-import { useConversations } from '../../../lib/useConversations'
 import { EditPlayerSheet } from '../../../components/EditPlayerSheet'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { theme, spacing, fontSize, fontWeight, radius, forest, court } from '@mind-court/ui'
@@ -21,7 +20,6 @@ export default function PlayerDetail() {
   const insets = useSafeAreaInsets()
   const { lessons } = useLessons()
   const { players, deletePlayer, updatePlayer } = usePlayers()
-  const { startConversation } = useConversations()
   const [showEdit, setShowEdit] = useState(false)
   const [player, setPlayer] = useState<Player | null>(null)
 
@@ -42,12 +40,6 @@ export default function PlayerDetail() {
     .sort((a, b) => new Date(b.scheduled_at).getTime() - new Date(a.scheduled_at).getTime())
 
   const totalMinutes = playerLessons.reduce((sum, l) => sum + (l.duration_minutes ?? 0), 0)
-
-  async function handleMessage() {
-    if (!player) return
-    const { data } = await startConversation(player.full_name, player.id)
-    if (data) router.push(`/coach/thread/${data.id}`)
-  }
 
   async function handleDelete() {
     Alert.alert(
@@ -117,18 +109,13 @@ export default function PlayerDetail() {
         </View>
       </View>
 
-      {/* Next-action ribbon — Schedule / Message / Edit */}
+      {/* Next-action ribbon — Schedule / Edit */}
       <View style={styles.actionsRow}>
         <ActionPill
           icon="calendar"
           label={playerLessons.length === 0 ? 'Schedule first lesson' : 'Schedule'}
           accent={isWelcome && playerLessons.length === 0}
           onPress={() => router.push('/coach')}
-        />
-        <ActionPill
-          icon="message-circle"
-          label="Message"
-          onPress={handleMessage}
         />
         <ActionPill
           icon="edit-2"
